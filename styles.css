@@ -351,7 +351,7 @@ body {
   height: var(--runner-size, 25%);
   aspect-ratio: 100 / 130;
   z-index: 7;
-  transform: translate3d(var(--runner-x, 0px), 0, 0) translateX(-50%);
+  transform: translateX(-50%);
 }
 
 .runner svg {
@@ -439,7 +439,20 @@ body {
     rgba(255, 240, 214, 0.34) 55%,
     rgba(255, 250, 236, 0.7) 100%
   );
-  opacity: var(--daylight, 0);
+  /* its own variable, because --daylight also lifts the vignette and the two
+     want different amounts once he is outside */
+  opacity: var(--wash, 0);
+}
+
+/* Blown-out daylight. Above everything in the scene and below the result, so
+   the swap from tunnel to beach happens where nobody can see it. */
+.whiteout {
+  position: absolute;
+  inset: 0;
+  z-index: 15;
+  pointer-events: none;
+  background: #fffdf6;
+  opacity: var(--white, 0);
 }
 
 /* Tighter and heavier than a normal vignette: it is doing the work of the
@@ -550,20 +563,6 @@ body {
 
 .tracker__unit {
   opacity: 0.6;
-}
-
-/* ------------------------------------------------------------- daylight */
-
-/* The moment he clears the mouth: the frame washes out for a beat before the
-   result arrives, so the run ends on getting out rather than on a number. */
-[data-state="bursting"] .daylight {
-  opacity: 1;
-  transition: opacity 460ms ease-in;
-}
-
-[data-state="bursting"] .vignette {
-  opacity: 0;
-  transition: opacity 460ms ease-in;
 }
 
 /* --------------------------------------------------------------- crush */

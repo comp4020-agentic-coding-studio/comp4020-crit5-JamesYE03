@@ -7,6 +7,7 @@
 import { describe, expect, it } from "vitest";
 import {
   CADENCE_CAP,
+  cheer,
   ease,
   gait,
   pose,
@@ -37,11 +38,15 @@ describe("the run cycle", () => {
     }
   });
 
-  it("never bends a knee or an elbow backwards", () => {
+  it("bends the knee the way a knee bends", () => {
+    // SVG rotates clockwise and he runs right, so a knee folding the heel
+    // backwards is a *positive* shin angle and the elbow carrying the hand
+    // forwards is a negative one. Tying the fold to the same sine as the thigh
+    // got this backwards for three rounds and the legs pranced.
     for (const phase of cycle) {
       const p = pose(phase);
       for (const limb of [p.near, p.far]) {
-        expect(limb.shin).toBeLessThanOrEqual(0);
+        expect(limb.shin).toBeGreaterThanOrEqual(0);
         expect(limb.foreArm).toBeLessThanOrEqual(0);
       }
     }
@@ -49,9 +54,12 @@ describe("the run cycle", () => {
 
   it("folds the knee most when the leg is behind, and least reaching forward", () => {
     // Heel towards the buttock on the way through, foot reaching out to land.
-    const behind = pose((3 * Math.PI) / 2).near.shin;
-    const reaching = pose(Math.PI / 2).near.shin;
-    expect(behind).toBeLessThan(reaching - 60);
+    // Reaching forward is a negative thigh, trailing behind is a positive one.
+    const behind = pose((3 * Math.PI) / 2);
+    const reaching = pose(Math.PI / 2);
+    expect(behind.near.thigh).toBeGreaterThan(0);
+    expect(reaching.near.thigh).toBeLessThan(0);
+    expect(behind.near.shin).toBeGreaterThan(reaching.near.shin + 60);
   });
 
   it("rises twice per cycle, once on each foot", () => {
@@ -87,10 +95,35 @@ describe("the set position", () => {
     expect(Math.sign(set.far.upperArm)).toBe(-Math.sign(set.far.thigh));
   });
 
-  it("bends no joint backwards", () => {
+  it("bends no joint the wrong way", () => {
     for (const limb of [set.near, set.far]) {
-      expect(limb.shin).toBeLessThanOrEqual(0);
+      expect(limb.shin).toBeGreaterThanOrEqual(0);
       expect(limb.foreArm).toBeLessThanOrEqual(0);
+    }
+  });
+});
+
+describe("the celebration", () => {
+  it("starts from arms down and ends with them overhead", () => {
+    expect(Math.abs(cheer(0).near.upperArm)).toBeLessThan(20);
+    expect(Math.abs(cheer(1).near.upperArm)).toBeGreaterThan(120);
+    expect(Math.abs(cheer(1).far.upperArm)).toBeGreaterThan(120);
+  });
+
+  it("throws the arms up on opposite sides, so they read as a V", () => {
+    expect(Math.sign(cheer(1).near.upperArm)).toBe(-Math.sign(cheer(1).far.upperArm));
+  });
+
+  it("opens the chest instead of staying hunched over", () => {
+    expect(cheer(1).lean).toBeLessThan(pose(0).lean);
+  });
+
+  it("bends no joint the wrong way, at any point in it", () => {
+    for (let p = 0; p <= 1; p += 0.05) {
+      for (const limb of [cheer(p).near, cheer(p).far]) {
+        expect(limb.shin).toBeGreaterThanOrEqual(0);
+        expect(limb.foreArm).toBeLessThanOrEqual(0);
+      }
     }
   });
 });

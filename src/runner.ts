@@ -6,7 +6,17 @@
 // you change `animation-duration` mid-flight and visibly jump, whereas a phase
 // accumulator just advances slower.
 //
-// Angles are degrees, positive = forward (the direction he is running).
+// Angles are degrees and go straight into an SVG `rotate()`, which turns
+// **clockwise**. He runs to the right, so for a limb hanging downwards a
+// positive angle swings it *backwards* and a negative one swings it forwards.
+// That is the opposite of what reads naturally, and getting it wrong is how
+// the knees ended up folding the wrong way for three rounds: the fold was tied
+// to the same sine as the thigh, so the heel kicked up while the leg was
+// reaching forward — a prance, not a run.
+//
+// Everything below is therefore written in terms of `forward`, +1 when the
+// limb is reaching ahead, and converted once, at the end.
+//
 // `shin` and `foreArm` are relative to the limb above them, because that is
 // how the SVG groups are nested.
 
@@ -41,23 +51,26 @@ const ELBOW_PLAY = 7;
 const BOB = 4.2;
 
 function limb(phase: number): Limb {
-  const swing = Math.sin(phase);
+  /** +1 with the leg reaching ahead, -1 with it trailing behind. */
+  const forward = Math.sin(phase);
 
-  // Thigh forward at +sin, so the leg is furthest forward a quarter turn in.
-  const thigh = THIGH_SWING * swing;
-
-  // Knee flexion peaks with the leg *behind* the body — the heel-to-buttock
+  // Knee flexion peaks with the leg *behind* — heel towards the buttock, the
   // moment that separates a run from a walk — and nearly straightens as the
-  // foot reaches forward to land.
-  const fold = 0.5 - 0.5 * swing;
-  const shin = -(KNEE_MIN + KNEE_MAX * fold * fold);
+  // foot reaches out to land. Folding takes the foot backwards, so it is a
+  // positive rotation.
+  const fold = 0.5 - 0.5 * forward;
+  const shin = KNEE_MIN + KNEE_MAX * fold * fold;
 
-  // Arms oppose the leg on the same side; that opposition is what stops a
-  // running figure reading as a marching one.
-  const upperArm = -ARM_SWING * swing;
-  const foreArm = -(ELBOW + ELBOW_PLAY * swing);
-
-  return { thigh, shin, upperArm, foreArm };
+  return {
+    thigh: -THIGH_SWING * forward,
+    shin,
+    // Arms oppose the leg on the same side; that opposition is what stops a
+    // running figure reading as a marching one.
+    upperArm: ARM_SWING * forward,
+    // The elbow is held at a right angle and the hand carried forwards, which
+    // is a negative rotation.
+    foreArm: -(ELBOW + ELBOW_PLAY * forward),
+  };
 }
 
 /**
@@ -72,8 +85,32 @@ export function ready(): Pose {
   return {
     bob: 3,
     lean: 24,
-    near: { thigh: 26, shin: -78, upperArm: -34, foreArm: -96 },
-    far: { thigh: -30, shin: -14, upperArm: 40, foreArm: -84 },
+    // near leg forward and folded under him, far leg back and loaded
+    near: { thigh: -26, shin: 74, upperArm: 34, foreArm: -96 },
+    far: { thigh: 30, shin: 20, upperArm: -40, foreArm: -84 },
+  };
+}
+
+/**
+ * Out, and knowing it: both arms thrown up, chest open, up on his toes.
+ *
+ * `progress` runs 0 to 1 across the celebration — the arms come up over the
+ * first third and then he punches the air twice, because a held pose reads as
+ * a screenshot and this is the one moment the run has been about.
+ */
+export function cheer(progress: number): Pose {
+  const p = Math.min(1, Math.max(0, progress));
+  const raise = Math.min(1, p / 0.32);
+  const pump = p > 0.32 ? Math.sin((p - 0.32) * Math.PI * 3.4) * 11 : 0;
+  const hop = -Math.abs(Math.sin(p * Math.PI * 2.2)) * 7;
+  const elbow = -(74 - 62 * raise);
+
+  return {
+    bob: hop,
+    lean: 9 - 17 * raise,
+    // a V overhead: one arm swung up in front, the other up behind
+    near: { thigh: -13, shin: 10, upperArm: -150 * raise - pump, foreArm: elbow },
+    far: { thigh: 13, shin: 10, upperArm: 150 * raise + pump, foreArm: elbow },
   };
 }
 

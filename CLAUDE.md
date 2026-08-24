@@ -55,10 +55,14 @@ makes him slow, and the boulder closes.
   offsets it vertically so the sand carries straight on from the flagstones.
   The tunnel lights from grim to daylight across the run (`light()`, on
   progress squared so the light arrives as an event rather than a fade), and
-  clearing the mouth plays out in two beats before the result: the island
-  slides the rest of the way in and freezes, and then he runs across it and out
-  of shot on his own legs. The result and its sting arrive only after that, so
-  the run ends on getting away rather than on a number appearing.
+  clearing the mouth plays out in four beats before the result: he runs into
+  the light, the frame blows out to white, the beach fades up out of the white
+  with him standing on it, and he throws his arms up. The swap from tunnel to
+  beach — parking the island, resetting the camera, changing his pose — all
+  happens *inside* the white, where there is nothing to see: no crossfade to
+  get right and no reframing anyone can catch. The result and its sting arrive
+  only after the celebration, so the run ends on getting out rather than on a
+  number appearing.
 - **Four scrolling bands at four rates**, with tile widths sharing no useful
   common factor (1640, 1180, 520, 460) so the combination drifts and does not
   visibly repeat inside a run. Generated, not drawn, so the stonework can be
@@ -330,6 +334,19 @@ for this, because nothing else in the repo can see it.
 Colours inside SVG **presentation attributes** stay hex. Attribute colour
 parsing is older and narrower than a stylesheet's, and an unreadable colour is
 a black shape rather than an error.
+
+### SVG rotates clockwise, and he runs to the right
+
+So for a limb hanging downwards, **a positive angle swings it backwards**.
+This is the opposite of what reads naturally and it cost three rounds of "the
+running still looks wrong": the knee fold was tied to the same sine as the
+thigh, which folded the heel up while the leg was reaching *forward* — a
+prance, not a run. A knee bending the way a knee bends is a positive `shin`;
+an elbow carrying the hand forwards is a negative `foreArm`.
+
+`src/runner.ts` is therefore written in terms of a `forward` value, +1 with the
+limb reaching ahead, and converts to rotation once at the end.
+`spec/gait.test.ts` pins the signs so it cannot invert again.
 
 ### Animating from JavaScript, not keyframes
 

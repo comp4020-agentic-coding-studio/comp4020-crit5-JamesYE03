@@ -21,6 +21,7 @@ import {
   CADENCE_AT_THRESHOLD,
   ease,
   gait,
+  cheer,
   pose,
   ready,
   smoothDamp,
@@ -55,6 +56,7 @@ const exit = el<HTMLElement>("exit");
 const outside = el<HTMLElement>("outside");
 const daylight = el<HTMLElement>("daylight");
 const grain = el<HTMLElement>("grain");
+const whiteout = el<HTMLElement>("whiteout");
 const inner = el<HTMLElement>("passage-inner");
 const doneText = el<HTMLElement>("done");
 const errorText = el<HTMLElement>("errors");
@@ -104,11 +106,20 @@ const GROUND_AT_LEFT = 0.78;
 /** How thick his back is, for deciding when the rock has reached it. */
 const BODY_HALF = 0.09;
 const CRUSH_MS = 420;
-/* The finish, in two beats: the island slides in until it fills the frame and
- * freezes, and then he runs out of shot across it. Only after that does the
- * result arrive — the run ends on getting away, not on a number appearing. */
-const BURST_SLIDE_MS = 420;
-const BURST_RUN_MS = 900;
+/*
+ * The finish, in four beats. He runs into the light, everything blows out to
+ * white, the beach fades up out of the white with him standing on it, and he
+ * throws his arms up. Only then does the result arrive — the run ends on
+ * getting out, not on a number appearing.
+ *
+ * The swap from tunnel to beach happens during the white, where there is
+ * nothing to see: no crossfade to get right, and the camera can be reset for
+ * the celebration without anyone watching it happen.
+ */
+const WHITE_IN_MS = 400;
+const WHITE_HOLD_MS = 200;
+const WHITE_OUT_MS = 560;
+const CHEER_MS = 1000;
 
 /** The world runs half again as fast as it first did, at your asking. Paired
  *  with the same multiplier on the cadence in src/runner.ts. */
@@ -168,8 +179,7 @@ const SHOWN_SMOOTH = 0.16;
  *  that snapped to each keystroke would be worse than no zoom at all. */
 let zoom: Damped = { value: ZOOM_NEAR, velocity: 0 };
 const ZOOM_SMOOTH = 0.55;
-let burstZoom = ZOOM_NEAR;
-let burstOvershoot = 0;
+let parked = false;
 
 /*
  * Geometry, measured once per layout and never again.
@@ -402,23 +412,43 @@ function frame(now: number): void {
     const t = now - burstAt;
     const at = (burstAt - startedAt) / 1000;
 
-    if (t < BURST_SLIDE_MS) {
-      // Beat one: the island slides the rest of the way in, until the tunnel
-      // is off the back of the frame entirely.
-      const p = t / BURST_SLIDE_MS;
-      shownCorrect = { value: course.chars + p * burstOvershoot, velocity: 0 };
+    if (t < WHITE_IN_MS) {
+      // Still running, and the light taking the frame.
+      const p = t / WHITE_IN_MS;
+      shownCorrect = { value: course.chars + p * 8, velocity: 0 };
       advance(dt, at);
       placeOutside(shownCorrect.value);
+      white(p * p);
       return;
     }
 
-    // Beat two: the island is a still background now, and he runs across it
-    // and out of shot on his own legs.
-    const p = Math.min(1, (t - BURST_SLIDE_MS) / BURST_RUN_MS);
-    const away = stageW / 2 / burstZoom + runnerH;
-    runner.style.setProperty("--runner-x", `${(p * away).toFixed(1)}px`);
-    stride += Math.PI * gait(away / (BURST_RUN_MS / 1000), baseStep).cadence * dt;
-    drawRunner();
+    if (t < WHITE_IN_MS + WHITE_HOLD_MS) {
+      // Nothing to see. Do the swap here.
+      white(1);
+      if (!parked) {
+        parked = true;
+        parkOutside();
+        zoom = { value: ZOOM_NEAR, velocity: 0 };
+        world.style.transform = `scale(${ZOOM_NEAR})`;
+        stage.style.setProperty("--daylight", "1");
+        daylight.style.setProperty("--wash", "0.12");
+        exit.style.setProperty("--glow", "0");
+        drawRunner(cheer(0));
+      }
+      return;
+    }
+
+    const after = t - WHITE_IN_MS - WHITE_HOLD_MS;
+    if (after < WHITE_OUT_MS) {
+      // The beach comes up out of the white, with him standing on it.
+      white(1 - after / WHITE_OUT_MS);
+      drawRunner(cheer(0));
+      return;
+    }
+
+    const p = Math.min(1, (after - WHITE_OUT_MS) / CHEER_MS);
+    white(0);
+    drawRunner(cheer(p));
     if (p >= 1) end("escaped", at);
     return;
   }
@@ -436,15 +466,33 @@ function frame(now: number): void {
   }
 }
 
-/** The tunnel starts grim and ends in daylight. Two overlays, both moving
- *  nothing but their own opacity. */
+/** The tunnel starts grim and ends in daylight. Three overlays, none of them
+ *  moving anything but its own opacity. */
 function light(progress: number): void {
   // squared, so it stays properly dark for most of the run and the light
   // arrives as an event rather than as a slow fade from the first keystroke
   const day = Math.min(1, Math.max(0, progress)) ** 2;
-  daylight.style.setProperty("--daylight", day.toFixed(3));
+  daylight.style.setProperty("--wash", (day * 0.85).toFixed(3));
   stage.style.setProperty("--daylight", day.toFixed(3));
   exit.style.setProperty("--glow", (0.08 + 0.8 * day).toFixed(3));
+}
+
+function white(amount: number): void {
+  whiteout.style.setProperty("--white", Math.min(1, Math.max(0, amount)).toFixed(3));
+}
+
+/**
+ * Park the island as a still background with the runner standing on its sand.
+ *
+ * Anchored on the ground under *him* rather than on its own left edge: the
+ * beach inside the drawing is level, so lining it up anywhere else would leave
+ * him hovering above or sunk into it.
+ */
+function parkOutside(): void {
+  const x = contactX - outsideW * 0.34;
+  const y = groundAt(stageW / 2, stageH) - GROUND_IN_SCENE * outsideH;
+  outside.style.visibility = "visible";
+  outside.style.transform = `translate3d(${x.toFixed(2)}px, ${y.toFixed(2)}px, 0)`;
 }
 
 /**
@@ -519,18 +567,13 @@ function onBackspace(): void {
   paint();
 }
 
-/** Out: hold the result back while the island settles and he clears the shot. */
+/** Out: hold the result back for the white, the beach and the celebration. */
 function burst(seconds: number): void {
   phase = "bursting";
   burstAt = startedAt + seconds * 1000;
   game.dataset.state = "bursting";
-  // Freeze the camera here: the two beats below both depend on the scale, and
-  // a zoom still drifting underneath them would fight the framing.
-  burstZoom = zoom.value;
-  // Far enough for the island's left edge to clear the left of the frame.
-  const covered = stageW / 2 - stageW / (2 * burstZoom);
-  burstOvershoot = Math.max(2, (contactX - covered) / pxPerChar + 1);
-  // He is past it and it is behind the island anyway.
+  parked = false;
+  // He is past it, and it would be drawn on the sand.
   boulder.style.visibility = "hidden";
   delete tracker.dataset.visible;
 }
@@ -572,14 +615,15 @@ function reset(): void {
   zoom = { value: ZOOM_NEAR, velocity: 0 };
   crushRoll = 0;
   shownDistance = -1;
+  parked = false;
   game.dataset.state = "idle";
   delete game.dataset.outcome;
   result.hidden = true;
   sound.stopMusic();
   boulderSpin.style.transform = "";
   boulder.style.visibility = "visible";
-  runner.style.setProperty("--runner-x", "0px");
   world.style.transform = `scale(${ZOOM_NEAR})`;
+  white(0);
   layout();
   // scroll() was only ever called from advance(), so at rest the layers never
   // received their rotation and the opening screen showed a level tunnel.
