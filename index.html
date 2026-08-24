@@ -169,30 +169,12 @@
         </div>
 
         <!--
-          The way out. It stands at the far end of the tunnel, at the distance
-          the passage is long, and is placed at the same scale as everything
-          else — so it arrives at him exactly as the last character lands.
+          The way out — and the end of the tunnel. Not a marker that floats
+          towards you: this is the world on the other side, drawn *over* the
+          tunnel bands, with its left edge at the mouth. Once it has passed the
+          runner it covers the frame, so there is no more tunnel behind him.
         -->
-        <div class="finish" data-finish aria-hidden="true">
-          <svg viewBox="0 0 320 620" preserveAspectRatio="none">
-            <defs>
-              <radialGradient id="day" cx="50%" cy="46%" r="62%">
-                <stop offset="0%" stop-color="#fffaf0" />
-                <stop offset="48%" stop-color="#ffe9c2" />
-                <stop offset="100%" stop-color="#ffcf8e" stop-opacity="0" />
-              </radialGradient>
-            </defs>
-            <path
-              class="finish__sky"
-              d="M96 620 L96 300 Q160 176 224 300 L224 620 Z"
-              fill="url(#day)"
-            />
-            <path
-              class="finish__rock"
-              d="M0 0 H120 L112 292 Q160 190 208 292 L200 0 H320 V620 H236 L240 316 Q160 214 80 316 L84 620 H0 Z"
-            />
-          </svg>
-        </div>
+        <div class="outside" data-outside aria-hidden="true"></div>
 
         <!-- daylight reaching further back up the tunnel as the run goes on -->
         <div class="exit" data-exit aria-hidden="true"></div>

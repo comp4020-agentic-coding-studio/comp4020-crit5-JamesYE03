@@ -348,3 +348,130 @@ export function grainTile(): string {
     `</filter><rect width='180' height='180' filter='url(#n)' opacity='0.42'/></svg>`
   );
 }
+
+/**
+ * What is on the other side: the tunnel simply stops, and this is behind it.
+ *
+ * Not a tile and not a marker that floats towards you — one wide scene, drawn
+ * *over* the tunnel bands, whose left edge is the mouth of the cave. Once it
+ * has passed the runner it covers the whole frame, so the tunnel does not
+ * carry on behind him. Its ground sits at 60% of the viewBox, which is what
+ * main.ts lines up with the tunnel floor at the join.
+ */
+export function outsideScene(): string {
+  const r = rng(1770);
+  const W = 1600;
+  const H = 900;
+  const sea = 440;
+  const shore = 500;
+  const ground = 540;
+
+  let out = `${open(W, H)}<defs>
+    <linearGradient id='sky' x1='0' y1='0' x2='0' y2='1'>
+      <stop offset='0%' stop-color='#4f9fc9'/>
+      <stop offset='46%' stop-color='#9fd0e2'/>
+      <stop offset='78%' stop-color='#ffe2b0'/>
+      <stop offset='100%' stop-color='#ffd08c'/>
+    </linearGradient>
+    <linearGradient id='water' x1='0' y1='0' x2='0' y2='1'>
+      <stop offset='0%' stop-color='#3f8fb4'/>
+      <stop offset='55%' stop-color='#2f7ba3'/>
+      <stop offset='100%' stop-color='#4ea3bf'/>
+    </linearGradient>
+    <linearGradient id='sand' x1='0' y1='0' x2='0' y2='1'>
+      <stop offset='0%' stop-color='#e6c894'/>
+      <stop offset='35%' stop-color='#d8b57c'/>
+      <stop offset='100%' stop-color='#b8925c'/>
+    </linearGradient>
+    <radialGradient id='sun' cx='50%' cy='50%' r='50%'>
+      <stop offset='0%' stop-color='#fffdf2' stop-opacity='0.95'/>
+      <stop offset='34%' stop-color='#ffe9a8' stop-opacity='0.5'/>
+      <stop offset='100%' stop-color='#ffd07a' stop-opacity='0'/>
+    </radialGradient>
+  </defs>`;
+
+  out += `<rect width='${W}' height='${sea}' fill='url(#sky)'/>`;
+
+  // the sun, low and hazy, with its path laid across the water
+  out += `<circle cx='1160' cy='300' r='230' fill='url(#sun)'/>`;
+  out += `<circle cx='1160' cy='300' r='52' fill='#fffbe8'/>`;
+
+  // cloud banks, flat-bottomed
+  for (const [cx, cy, s] of [
+    [420, 150, 1],
+    [900, 96, 0.7],
+    [1380, 190, 0.85],
+  ] as const) {
+    out += `<path d='M${cx - 130 * s} ${cy} q ${26 * s} -${34 * s} ${72 * s} -${22 * s} q ${22 * s} -${40 * s} ${76 * s} -${20 * s} q ${44 * s} -${18 * s} ${70 * s} ${16 * s} q ${44 * s} ${2 * s} ${42 * s} ${26 * s} z' fill='#ffffff' opacity='0.5'/>`;
+  }
+
+  // birds
+  for (let i = 0; i < 5; i++) {
+    const x = 520 + r() * 700;
+    const y = 130 + r() * 150;
+    const s = 7 + r() * 6;
+    out += `<path d='M${x.toFixed(0)} ${y.toFixed(0)} q ${s} -${s * 0.7} ${s * 2} 0 M${(x + s * 2).toFixed(0)} ${y.toFixed(0)} q ${s} -${s * 0.7} ${s * 2} 0' fill='none' stroke='#3a556b' stroke-width='2' opacity='0.5'/>`;
+  }
+
+  // islands on the horizon, hazier the further out
+  for (const [ix, iw, ih, fade] of [
+    [300, 300, 74, 0.3],
+    [700, 210, 52, 0.22],
+    [1240, 340, 92, 0.36],
+  ] as const) {
+    out += `<path d='M${ix} ${sea} q ${iw * 0.24} -${ih} ${iw * 0.5} -${ih * 0.82} q ${iw * 0.3} -${ih * 0.5} ${iw * 0.5} ${ih * 0.82} z' fill='#2c5c72' opacity='${fade}'/>`;
+  }
+
+  out += `<rect y='${sea}' width='${W}' height='${shore - sea + 20}' fill='url(#water)'/>`;
+  // the sun's path, and a few swells
+  out += `<path d='M1104 ${sea} h112 l64 ${shore - sea + 20} h-240 z' fill='#ffe7ae' opacity='0.3'/>`;
+  for (let i = 0; i < 16; i++) {
+    const y = sea + 6 + r() * (shore - sea + 4);
+    const x = r() * W;
+    out += `<rect x='${x.toFixed(0)}' y='${y.toFixed(0)}' width='${(20 + r() * 70).toFixed(0)}' height='2' fill='#cdeaf2' opacity='${(0.2 + r() * 0.35).toFixed(2)}'/>`;
+  }
+
+  // surf, then wet sand, then the dry beach he lands on
+  out += `<path d='M0 ${shore + 8} q 90 -14 180 0 q 100 14 200 -2 q 110 -16 210 2 q 120 16 230 -4 q 120 -12 240 6 q 140 14 260 -6 L${W} ${H} L0 ${H} z' fill='#eef6f4' opacity='0.75'/>`;
+  out += `<rect y='${shore + 22}' width='${W}' height='${H - shore - 22}' fill='url(#sand)'/>`;
+  out += `<path d='M0 ${ground} H${W}' stroke='#f0dcb2' stroke-width='4' opacity='0.55'/>`;
+
+  // driftwood, shells and stones on the sand
+  for (let i = 0; i < 22; i++) {
+    const x = r() * W;
+    const y = ground + 12 + r() * (H - ground - 40);
+    const s = 3 + r() * 8;
+    const tone = r() < 0.5 ? "#a8875a" : "#efe0c2";
+    out += `<ellipse cx='${x.toFixed(0)}' cy='${y.toFixed(0)}' rx='${s.toFixed(1)}' ry='${(s * 0.5).toFixed(1)}' fill='${tone}'/>`;
+  }
+  out += `<path d='M980 ${ground + 60} l120 -18 l6 12 l-124 20 z' fill='#9c8055' opacity='0.8'/>`;
+
+  // palms, leaning away from the sea
+  for (const [px, ph, tilt] of [
+    [1180, 210, -8],
+    [1372, 168, 6],
+    [1500, 240, -4],
+  ] as const) {
+    const top = ground - ph;
+    out += `<path d='M${px} ${ground} q ${tilt} -${ph * 0.55} ${tilt * 2.6} -${ph}' fill='none' stroke='#7a5a34' stroke-width='11' stroke-linecap='round'/>`;
+    const tx = px + tilt * 2.6;
+    for (const [dx, dy] of [
+      [-92, -34],
+      [-70, 22],
+      [82, -30],
+      [64, 26],
+      [-8, -56],
+    ] as const) {
+      out += `<path d='M${tx} ${top} q ${(dx * 0.6).toFixed(0)} ${(dy * 0.4 - 22).toFixed(0)} ${dx} ${dy}' fill='none' stroke='#2f6b3f' stroke-width='9' stroke-linecap='round'/>`;
+    }
+    out += `<circle cx='${tx}' cy='${top}' r='9' fill='#5f4526'/>`;
+  }
+
+  // The cliff the cave is cut into. This is the left edge of the scene, so it
+  // is what the mouth of the tunnel reads as from inside.
+  out += `<path d='M0 0 H430 L358 64 L292 42 L236 132 L178 108 L124 206 L66 182 L0 268 Z' fill='#100b06'/>`;
+  out += `<path d='M0 268 L58 300 L32 386 L78 452 L26 498 L0 486 Z' fill='#100b06'/>`;
+  out += `<path d='M0 0 H430 L358 64 L292 42 L236 132 L178 108 L124 206 L66 182 L0 268' fill='none' stroke='#c9a877' stroke-width='5' opacity='0.5'/>`;
+
+  return `${out}</svg>`;
+}

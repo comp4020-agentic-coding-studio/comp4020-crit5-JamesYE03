@@ -12,14 +12,24 @@
 
 import { JSDOM } from "jsdom";
 import { describe, expect, it } from "vitest";
-import { ceilingTile, floorTile, grainTile, svgUrl, wallTile } from "../src/scenery";
+import {
+  ceilingTile,
+  floorTile,
+  grainTile,
+  outsideScene,
+  propsTile,
+  svgUrl,
+  wallTile,
+} from "../src/scenery";
 
 const { DOMParser } = new JSDOM().window;
 
 const tiles = {
   wall: wallTile(),
+  props: propsTile(),
   ceiling: ceilingTile(),
   floor: floorTile(),
+  outside: outsideScene(),
   grain: grainTile(),
 };
 

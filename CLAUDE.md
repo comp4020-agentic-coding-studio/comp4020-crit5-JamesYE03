@@ -34,12 +34,17 @@ makes him slow, and the boulder closes.
   boulder's screen position is his lead, drawn to scale; once the lead is big
   enough that the boulder leaves the frame, an arrow at the left edge carries the
   distance instead.
-- **The mouth of the cave is a real object**, standing at the distance the
-  passage is long and drawn at the same scale as everything else — so it
-  arrives as the last character lands. The finish line is the passage; there is
-  no separate rule for it. The tunnel lights from grim to daylight across the
-  run (`light()`, on progress squared so the light is an event rather than a
-  fade), and clearing the mouth holds the result back for a beat.
+- **The tunnel ends.** The island outside is one wide drawing sitting *above*
+  every tunnel band, with its left edge at the mouth — so where it begins the
+  tunnel stops, and once it has passed the runner it covers the frame rather
+  than leaving a corridor scrolling behind him. It stands at the distance the
+  passage is long, at the same scale as everything else, so it arrives as the
+  last character lands: the finish line is the passage, not a separate rule.
+  Its ground sits at `GROUND_IN_SCENE` of the drawing and `placeOutside()`
+  offsets it vertically so the sand carries straight on from the flagstones.
+  The tunnel lights from grim to daylight across the run (`light()`, on
+  progress squared so the light arrives as an event rather than a fade), and
+  clearing the mouth holds the result back for a beat.
 - **Four scrolling bands at four rates**, with tile widths sharing no useful
   common factor (1640, 1180, 520, 460) so the combination drifts and does not
   visibly repeat inside a run. Generated, not drawn, so the stonework can be
@@ -73,7 +78,10 @@ Non-negotiables from the published spec, in the terms that bite here:
 - **Audio files are fine this week.** C4 forbade them --- that rule was C4's
   spec, not a standing one, and it is retired. `public/*.mp3` ships music and
   the two result stings. The per-keystroke click is still synthesised, because a
-  file per keystroke would jitter and cut itself off.
+  file per keystroke would jitter and cut itself off. It sits at the same level
+  as the music: a bright tick alone reads as far quieter than a continuous bed
+  and gets tiring, so it is a filtered noise burst *plus* a low thump — the key
+  bottoming out — and both are loud.
 - **A stranger reaches an ending inside five minutes.** Both endings count. On a
   phone the honest outcome is usually being caught, and that is fine --- but the
   chase threshold drops on a coarse pointer so a phone player has a real run at

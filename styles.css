@@ -189,7 +189,7 @@ body {
   top: 0;
   height: var(--boulder-size, 34%);
   aspect-ratio: 1;
-  z-index: 6;
+  z-index: 7;
   transform: translate3d(-200vw, 0, 0);
   will-change: transform;
 }
@@ -361,27 +361,21 @@ body {
 
 /* ---------------------------------------------------------------- light */
 
-/* The way out, standing in the world at the distance the passage is long.
-   Positioned by transform from main.ts, like the boulder. */
-.finish {
+/* The world outside, and the end of the tunnel. It sits above every tunnel
+   band, so where it starts the tunnel stops — running past it does not leave a
+   corridor scrolling behind him. Positioned by transform, like the boulder. */
+.outside {
   position: absolute;
   top: 0;
   left: 0;
-  height: 100%;
-  width: var(--finish-width, 40%);
-  z-index: 7;
+  width: var(--outside-width, 150%);
+  height: var(--outside-height, 145%);
+  z-index: 6;
   pointer-events: none;
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
   transform: translate3d(-200vw, 0, 0);
   will-change: transform;
-}
-
-.finish svg {
-  width: 100%;
-  height: 100%;
-}
-
-.finish__rock {
-  fill: #100b06;
 }
 
 .exit {

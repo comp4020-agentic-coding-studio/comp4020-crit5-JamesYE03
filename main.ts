@@ -29,6 +29,7 @@ import {
   ceilingTile,
   floorTile,
   grainTile,
+  outsideScene,
   propsTile,
   svgUrl,
   wallTile,
@@ -49,7 +50,7 @@ const runner = el<HTMLElement>("runner");
 const tracker = el<HTMLElement>("tracker");
 const trackerDistance = el<HTMLElement>("tracker-distance");
 const exit = el<HTMLElement>("exit");
-const finish = el<HTMLElement>("finish");
+const outside = el<HTMLElement>("outside");
 const daylight = el<HTMLElement>("daylight");
 const grain = el<HTMLElement>("grain");
 const inner = el<HTMLElement>("passage-inner");
@@ -82,6 +83,7 @@ for (const layer of layers) {
   layer.node.style.backgroundSize = `${layer.width}px 100%`;
 }
 grain.style.backgroundImage = svgUrl(grainTile());
+outside.style.backgroundImage = svgUrl(outsideScene());
 
 // Thumbs are slower than ten fingers, so a phone gets a shorter tunnel and a
 // slower boulder. Both tunings are asserted against the five-minute line in
@@ -167,7 +169,8 @@ const SHOWN_SMOOTH = 0.16;
 let stageW = 0;
 let stageH = 0;
 let boulderSize = 0;
-let finishW = 0;
+let outsideW = 0;
+let outsideH = 0;
 let runnerH = 0;
 /** where the rock has to reach: his back, not the middle of his sprite */
 let contactX = 0;
@@ -243,20 +246,26 @@ function drawRunner(p = pose(stride)): void {
  * lie the player can see.
  */
 /**
- * The mouth of the cave: a real object standing at the far end of the tunnel,
- * exactly as far away as the passage is long, drawn at the same scale as
- * everything else. It therefore arrives at him as the last character lands —
- * the finish line is the passage, not a separate rule.
+ * Where the tunnel ends and the island begins.
+ *
+ * The mouth stands at the distance the passage is long, drawn at the same
+ * scale as everything else, so it arrives as the last character lands — the
+ * finish line is the passage, not a separate rule. `GROUND_IN_SCENE` is where
+ * the beach sits inside the drawing, and the vertical offset lines that up
+ * with the tunnel floor at the join, so the sand carries straight on from the
+ * flagstones.
  */
-function placeFinish(shown: number): void {
-  const away = (course.chars - shown) * pxPerChar;
-  const x = contactX + away - finishW * 0.42;
+const GROUND_IN_SCENE = 0.6;
+
+function placeOutside(shown: number): void {
+  const x = contactX + (course.chars - shown) * pxPerChar;
   if (x > stageW) {
-    finish.style.visibility = "hidden";
+    outside.style.visibility = "hidden";
     return;
   }
-  finish.style.visibility = "visible";
-  finish.style.transform = `translate3d(${x.toFixed(2)}px, 0, 0)`;
+  outside.style.visibility = "visible";
+  const y = groundAt(x, stageH) - GROUND_IN_SCENE * outsideH;
+  outside.style.transform = `translate3d(${x.toFixed(2)}px, ${y.toFixed(2)}px, 0)`;
 }
 
 function place(lead: number): void {
@@ -293,8 +302,12 @@ function layout(): void {
   stageW = stage.clientWidth;
   runnerH = Math.min(200, Math.max(80, stageH * 0.27));
   boulderSize = Math.min(300, Math.max(92, Math.min(stageH * 0.4, stageW * 0.26)));
-  finishW = Math.max(220, stageH * 0.75);
-  finish.style.setProperty("--finish-width", `${finishW}px`);
+  // Wide and tall enough that once its left edge has passed the runner it
+  // covers everything, and its ground line can be lined up with the tunnel's.
+  outsideW = Math.max(stageW * 1.6, stageH * 2.6);
+  outsideH = stageH * 1.45;
+  outside.style.setProperty("--outside-width", `${outsideW}px`);
+  outside.style.setProperty("--outside-height", `${outsideH}px`);
   contactX = stageW / 2 - runnerH * (100 / 130) * BODY_HALF;
 
   runner.style.setProperty("--runner-size", `${runnerH}px`);
@@ -343,7 +356,7 @@ function frame(now: number): void {
     shownCorrect = smoothDamp(shownCorrect, typing.correct, dt, SHOWN_SMOOTH);
     advance(dt, seconds);
     place(Math.max(0, leadAt(course, shownCorrect.value, seconds)));
-    placeFinish(shownCorrect.value);
+    placeOutside(shownCorrect.value);
     light(shownCorrect.value / course.chars);
 
     if (verdictNow === "escaped") burst(seconds);
@@ -356,9 +369,9 @@ function frame(now: number): void {
     // run ends on getting clear rather than on a number appearing.
     const done = Math.min(1, (now - burstAt) / BURST_MS);
     smoothCps = ease(smoothCps, course.thresholdCps * 1.4, dt, 0.3, 0.3);
-    shownCorrect = { value: course.chars + done * 14, velocity: 0 };
+    shownCorrect = { value: course.chars + done * 26, velocity: 0 };
     advance(dt, (burstAt - startedAt) / 1000);
-    placeFinish(shownCorrect.value);
+    placeOutside(shownCorrect.value);
     if (done >= 1) end("escaped", (burstAt - startedAt) / 1000);
     return;
   }
@@ -513,7 +526,7 @@ function reset(): void {
   scroll();
   drawRunner(ready());
   place(course.headStartChars);
-  placeFinish(0);
+  placeOutside(0);
   light(0);
   paint();
 }

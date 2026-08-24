@@ -5,8 +5,12 @@
 // second one <audio> element would keep cutting its own tail off, and eight
 // elements would be worse.
 
-const CLICK_GAIN = 0.075;
-const THUD_GAIN = 0.14;
+// Loud enough to sit alongside the music rather than under it. A 35ms burst
+// at this level reads as about as loud as the bed, because the ear averages
+// over time and the click is almost all transient.
+const CLICK_GAIN = 0.42;
+const THUMP_GAIN = 0.3;
+const THUD_GAIN = 0.55;
 const MUSIC_GAIN = 0.32;
 
 export type Sound = ReturnType<typeof createSound>;
@@ -57,10 +61,23 @@ export function createSound() {
 
       gain.gain.setValueAtTime(CLICK_GAIN, now);
       // exponentialRamp cannot target zero; ramp to an epsilon and stop.
-      gain.gain.exponentialRampToValueAtTime(1e-4, now + 0.035);
+      gain.gain.exponentialRampToValueAtTime(1e-4, now + 0.04);
       source.connect(band).connect(gain);
       source.start(now);
-      source.stop(now + 0.05);
+      source.stop(now + 0.06);
+
+      // A low thump under the tick: the key bottoming out. Without it, a loud
+      // click is just bright and thin, and gets tiring within a sentence.
+      const body = ctx.createOscillator();
+      const bodyGain = ctx.createGain();
+      body.type = "sine";
+      body.frequency.setValueAtTime(168, now);
+      body.frequency.exponentialRampToValueAtTime(92, now + 0.05);
+      bodyGain.gain.setValueAtTime(THUMP_GAIN, now);
+      bodyGain.gain.exponentialRampToValueAtTime(1e-4, now + 0.06);
+      body.connect(bodyGain).connect(ctx.destination);
+      body.start(now);
+      body.stop(now + 0.08);
       return;
     }
 
