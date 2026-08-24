@@ -25,7 +25,14 @@ import {
   smoothDamp,
   type Damped,
 } from "./src/runner";
-import { ceilingTile, floorTile, grainTile, svgUrl, wallTile } from "./src/scenery";
+import {
+  ceilingTile,
+  floorTile,
+  grainTile,
+  propsTile,
+  svgUrl,
+  wallTile,
+} from "./src/scenery";
 import { backspace, isFinished, press, start, type Typing } from "./src/typing";
 
 const el = <T extends Element>(name: string): T => {
@@ -42,6 +49,8 @@ const runner = el<HTMLElement>("runner");
 const tracker = el<HTMLElement>("tracker");
 const trackerDistance = el<HTMLElement>("tracker-distance");
 const exit = el<HTMLElement>("exit");
+const finish = el<HTMLElement>("finish");
+const daylight = el<HTMLElement>("daylight");
 const grain = el<HTMLElement>("grain");
 const inner = el<HTMLElement>("passage-inner");
 const doneText = el<HTMLElement>("done");
@@ -56,10 +65,13 @@ const statAccuracy = el<HTMLElement>("stat-accuracy");
 const statSeconds = el<HTMLElement>("stat-seconds");
 const again = el<HTMLButtonElement>("again");
 
+// Four bands at four rates, with four tile widths that share no useful factor,
+// so the combination drifts and does not visibly repeat inside a run.
 const layers = [
-  { node: el<HTMLElement>("layer-wall"), tile: wallTile(), parallax: 0.55, width: 820 },
-  { node: el<HTMLElement>("layer-ceiling"), tile: ceilingTile(), parallax: 0.82, width: 560 },
-  { node: el<HTMLElement>("layer-floor"), tile: floorTile(), parallax: 1, width: 340 },
+  { node: el<HTMLElement>("layer-wall"), tile: wallTile(), parallax: 0.5, width: 1640 },
+  { node: el<HTMLElement>("layer-props"), tile: propsTile(), parallax: 0.78, width: 1180 },
+  { node: el<HTMLElement>("layer-ceiling"), tile: ceilingTile(), parallax: 0.86, width: 520 },
+  { node: el<HTMLElement>("layer-floor"), tile: floorTile(), parallax: 1, width: 460 },
 ];
 
 for (const layer of layers) {
@@ -88,6 +100,10 @@ const GROUND_AT_LEFT = 0.78;
 /** How thick his back is, for deciding when the rock has reached it. */
 const BODY_HALF = 0.09;
 const CRUSH_MS = 420;
+const BURST_MS = 620;
+/** The world runs half again as fast as it first did, at your asking. Paired
+ *  with the same multiplier on the cadence in src/runner.ts. */
+const PACE = 1.5;
 
 /*
  * One world, one scale.
@@ -107,7 +123,7 @@ let pxPerChar = 12;
 /** how far the runner covers in one stride at the pace the boulder keeps */
 let baseStep = 40;
 
-type Phase = "idle" | "running" | "crushing" | "over";
+type Phase = "idle" | "running" | "crushing" | "bursting" | "over";
 
 let phase: Phase = "idle";
 let typing: Typing = start();
@@ -151,6 +167,7 @@ const SHOWN_SMOOTH = 0.16;
 let stageW = 0;
 let stageH = 0;
 let boulderSize = 0;
+let finishW = 0;
 let runnerH = 0;
 /** where the rock has to reach: his back, not the middle of his sprite */
 let contactX = 0;
@@ -159,6 +176,7 @@ let shownDistance = -1;
 let crushRoll = 0;
 let lastFrame = 0;
 let caughtAt = 0;
+let burstAt = 0;
 
 // ------------------------------------------------------------------ render
 
@@ -224,6 +242,23 @@ function drawRunner(p = pose(stride)): void {
  * it had swallowed the runner whole before the model called it, which is a
  * lie the player can see.
  */
+/**
+ * The mouth of the cave: a real object standing at the far end of the tunnel,
+ * exactly as far away as the passage is long, drawn at the same scale as
+ * everything else. It therefore arrives at him as the last character lands —
+ * the finish line is the passage, not a separate rule.
+ */
+function placeFinish(shown: number): void {
+  const away = (course.chars - shown) * pxPerChar;
+  const x = contactX + away - finishW * 0.42;
+  if (x > stageW) {
+    finish.style.visibility = "hidden";
+    return;
+  }
+  finish.style.visibility = "visible";
+  finish.style.transform = `translate3d(${x.toFixed(2)}px, 0, 0)`;
+}
+
 function place(lead: number): void {
   const edgeX = contactX - lead * pxPerChar + crushRoll;
   const centreX = edgeX - boulderSize / 2;
@@ -257,7 +292,9 @@ function layout(): void {
   stageH = stage.clientHeight;
   stageW = stage.clientWidth;
   runnerH = Math.min(200, Math.max(80, stageH * 0.27));
-  boulderSize = Math.min(300, Math.max(92, Math.min(stageH * 0.42, stageW * 0.3)));
+  boulderSize = Math.min(300, Math.max(92, Math.min(stageH * 0.4, stageW * 0.26)));
+  finishW = Math.max(220, stageH * 0.75);
+  finish.style.setProperty("--finish-width", `${finishW}px`);
   contactX = stageW / 2 - runnerH * (100 / 130) * BODY_HALF;
 
   runner.style.setProperty("--runner-size", `${runnerH}px`);
@@ -272,7 +309,10 @@ function layout(): void {
   // Fix the scale so that at the head start the whole rock is just inside the
   // frame, then let that decide how fast the tunnel goes past.
   const startEdge = boulderSize + stageW * 0.03;
-  pxPerChar = Math.max((contactX - startEdge) / course.headStartChars, stageW / 28);
+  pxPerChar = Math.max(
+    (contactX - startEdge) / course.headStartChars,
+    (stageW / 28) * PACE,
+  );
   // At the pace the boulder keeps, he runs at CADENCE_AT_THRESHOLD steps a
   // second; faster typing lengthens the stride once the cap is reached.
   baseStep = (course.thresholdCps * pxPerChar) / CADENCE_AT_THRESHOLD;
@@ -303,10 +343,23 @@ function frame(now: number): void {
     shownCorrect = smoothDamp(shownCorrect, typing.correct, dt, SHOWN_SMOOTH);
     advance(dt, seconds);
     place(Math.max(0, leadAt(course, shownCorrect.value, seconds)));
-    exit.style.setProperty("--glow", (0.1 + 0.8 * (typing.correct / course.chars)).toFixed(3));
+    placeFinish(shownCorrect.value);
+    light(shownCorrect.value / course.chars);
 
-    if (verdictNow === "escaped") end("escaped", seconds);
+    if (verdictNow === "escaped") burst(seconds);
     else if (verdictNow === "caught") crush(seconds);
+    return;
+  }
+
+  if (phase === "bursting") {
+    // Out. The camera runs on for a beat while the frame washes out, so the
+    // run ends on getting clear rather than on a number appearing.
+    const done = Math.min(1, (now - burstAt) / BURST_MS);
+    smoothCps = ease(smoothCps, course.thresholdCps * 1.4, dt, 0.3, 0.3);
+    shownCorrect = { value: course.chars + done * 14, velocity: 0 };
+    advance(dt, (burstAt - startedAt) / 1000);
+    placeFinish(shownCorrect.value);
+    if (done >= 1) end("escaped", (burstAt - startedAt) / 1000);
     return;
   }
 
@@ -321,6 +374,17 @@ function frame(now: number): void {
     place(0);
     if (done >= 1) end("caught", (caughtAt - startedAt) / 1000);
   }
+}
+
+/** The tunnel starts grim and ends in daylight. Two overlays, both moving
+ *  nothing but their own opacity. */
+function light(progress: number): void {
+  // squared, so it stays properly dark for most of the run and the light
+  // arrives as an event rather than as a slow fade from the first keystroke
+  const day = Math.min(1, Math.max(0, progress)) ** 2;
+  daylight.style.setProperty("--daylight", day.toFixed(3));
+  stage.style.setProperty("--daylight", day.toFixed(3));
+  exit.style.setProperty("--glow", (0.08 + 0.8 * day).toFixed(3));
 }
 
 /**
@@ -365,7 +429,7 @@ function begin(): void {
 }
 
 function onCharacter(char: string): void {
-  if (phase === "crushing") return;
+  if (phase === "crushing" || phase === "bursting") return;
   if (phase === "over") {
     reset();
     return;
@@ -385,7 +449,7 @@ function onCharacter(char: string): void {
 }
 
 function onBackspace(): void {
-  if (phase === "crushing") return;
+  if (phase === "crushing" || phase === "bursting") return;
   if (phase === "over") {
     reset();
     return;
@@ -393,6 +457,14 @@ function onBackspace(): void {
   if (phase === "idle") return;
   typing = backspace(typing);
   paint();
+}
+
+/** Out: hold the result back for a beat while he clears the mouth. */
+function burst(seconds: number): void {
+  phase = "bursting";
+  burstAt = startedAt + seconds * 1000;
+  game.dataset.state = "bursting";
+  sound.sting("escaped");
 }
 
 /** Caught: freeze the model, let the rock roll over him, then say so. */
@@ -417,7 +489,6 @@ function end(what: Outcome, seconds: number): void {
   );
   statSeconds.textContent = seconds.toFixed(1);
   result.hidden = false;
-  if (what === "escaped") sound.sting("escaped");
 }
 
 function reset(): void {
@@ -442,7 +513,8 @@ function reset(): void {
   scroll();
   drawRunner(ready());
   place(course.headStartChars);
-  exit.style.setProperty("--glow", "0.1");
+  placeFinish(0);
+  light(0);
   paint();
 }
 

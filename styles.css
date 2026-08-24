@@ -113,23 +113,34 @@ body {
 
 /* Rotating about the top-left drops the right-hand end, so every band starts
    above the frame: without the overhang the tilt would uncover a wedge of
-   nothing in the top corner. main.ts sets each background-size. */
+   nothing in the top corner. main.ts sets each background-size.
+
+   The ceiling band is deep and the floor sits high, because the first tunnel
+   was a corridor you could have driven a truck through. Headroom is most of
+   what makes a hole in the ground feel like a room. */
 .layer--wall {
   top: -14%;
   height: calc(var(--ground-y) + 14%);
   z-index: 1;
 }
 
+/* what is standing on the floor, against the wall behind it */
+.layer--props {
+  top: calc(var(--ground-y) - 26%);
+  height: 30%;
+  z-index: 2;
+}
+
 .layer--ceiling {
   top: -14%;
-  height: 52%;
-  z-index: 2;
+  height: 66%;
+  z-index: 3;
 }
 
 .layer--floor {
   top: var(--ground-y);
   height: 60%;
-  z-index: 3;
+  z-index: 4;
 }
 
 /* The torches are in the wall tile, so their glow scrolls with them; this is
@@ -137,7 +148,7 @@ body {
 .firelight {
   position: absolute;
   inset: 0;
-  z-index: 4;
+  z-index: 5;
   pointer-events: none;
   background: radial-gradient(
     120% 90% at 62% 58%,
@@ -178,7 +189,7 @@ body {
   top: 0;
   height: var(--boulder-size, 34%);
   aspect-ratio: 1;
-  z-index: 5;
+  z-index: 6;
   transform: translate3d(-200vw, 0, 0);
   will-change: transform;
 }
@@ -308,7 +319,7 @@ body {
   top: var(--runner-y, 40%);
   height: var(--runner-size, 25%);
   aspect-ratio: 100 / 130;
-  z-index: 6;
+  z-index: 8;
   transform: translateX(-50%);
 }
 
@@ -341,11 +352,6 @@ body {
   stroke-width: 4.6;
 }
 
-.runner__whip {
-  stroke: rgba(242, 230, 205, 0.62);
-  stroke-width: 2.4;
-}
-
 /* Every limb is the same colour and the same weight. The far arm and leg were
    dimmer for depth, and it read as a drawing mistake rather than as distance —
    a stick figure has four limbs made of the same line. */
@@ -354,6 +360,29 @@ body {
 }
 
 /* ---------------------------------------------------------------- light */
+
+/* The way out, standing in the world at the distance the passage is long.
+   Positioned by transform from main.ts, like the boulder. */
+.finish {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: var(--finish-width, 40%);
+  z-index: 7;
+  pointer-events: none;
+  transform: translate3d(-200vw, 0, 0);
+  will-change: transform;
+}
+
+.finish svg {
+  width: 100%;
+  height: 100%;
+}
+
+.finish__rock {
+  fill: #100b06;
+}
 
 .exit {
   position: absolute;
@@ -371,19 +400,44 @@ body {
   opacity: var(--glow, 0.1);
 }
 
+/* The tunnel starts grim and ends in daylight: this is the ambient half of
+   that, over the whole frame, while `.exit` is the light from the mouth
+   itself. Both move only `opacity`. */
+.daylight {
+  position: absolute;
+  inset: 0;
+  z-index: 9;
+  pointer-events: none;
+  background: linear-gradient(
+    92deg,
+    rgba(255, 240, 214, 0.06) 0%,
+    rgba(255, 240, 214, 0.34) 55%,
+    rgba(255, 250, 236, 0.7) 100%
+  );
+  opacity: var(--daylight, 0);
+}
+
+/* Tighter and heavier than a normal vignette: it is doing the work of the
+   tunnel closing in around the frame, and it lifts as the daylight arrives. */
 .vignette {
   position: absolute;
   inset: 0;
-  z-index: 8;
+  z-index: 10;
   pointer-events: none;
-  background: radial-gradient(120% 96% at 50% 46%, transparent 42%, rgba(6, 4, 2, 0.82) 100%);
+  background: radial-gradient(
+    104% 82% at 48% 46%,
+    transparent 24%,
+    rgba(6, 4, 2, 0.55) 62%,
+    rgba(3, 2, 1, 0.95) 100%
+  );
+  opacity: calc(1 - var(--daylight, 0) * 0.72);
 }
 
 /* Film grain, baked into a still image by src/scenery.ts. */
 .grain {
   position: absolute;
   inset: 0;
-  z-index: 9;
+  z-index: 11;
   pointer-events: none;
   opacity: 0.2;
   mix-blend-mode: overlay;
@@ -398,7 +452,7 @@ body {
   position: absolute;
   left: 50%;
   bottom: 5%;
-  z-index: 11;
+  z-index: 13;
   display: flex;
   gap: clamp(0.6rem, 2.5vw, 1.4rem);
   transform: translateX(-50%);
@@ -449,7 +503,7 @@ body {
   position: absolute;
   left: clamp(0.4rem, 2vw, 1.4rem);
   top: var(--tracker-y, 62%);
-  z-index: 10;
+  z-index: 12;
   display: none;
   align-items: center;
   gap: 0.3rem;
@@ -471,6 +525,20 @@ body {
 
 .tracker__unit {
   opacity: 0.6;
+}
+
+/* ------------------------------------------------------------- daylight */
+
+/* The moment he clears the mouth: the frame washes out for a beat before the
+   result arrives, so the run ends on getting out rather than on a number. */
+[data-state="bursting"] .daylight {
+  opacity: 1;
+  transition: opacity 460ms ease-in;
+}
+
+[data-state="bursting"] .vignette {
+  opacity: 0;
+  transition: opacity 460ms ease-in;
 }
 
 /* --------------------------------------------------------------- crush */

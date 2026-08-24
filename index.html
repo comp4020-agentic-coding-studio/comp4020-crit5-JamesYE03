@@ -39,6 +39,7 @@
       -->
       <div class="stage" data-stage>
         <div class="layer layer--wall" data-layer-wall aria-hidden="true"></div>
+        <div class="layer layer--props" data-layer-props aria-hidden="true"></div>
         <div class="layer layer--ceiling" data-layer-ceiling aria-hidden="true"></div>
         <div class="layer layer--floor" data-layer-floor aria-hidden="true"></div>
 
@@ -106,7 +107,7 @@
           <svg
             viewBox="0 0 100 130"
             role="img"
-            aria-label="A stick figure in a wide-brimmed hat running, a whip trailing from one hand, with a stone boulder rolling behind him."
+            aria-label="A stick figure in a wide-brimmed hat running, with a stone boulder rolling down the tunnel behind him."
           >
             <!--
               A skeleton, not a drawing: hip → thigh → knee → shin, and
@@ -146,10 +147,7 @@
 
               <g class="limb limb--near" data-arm-near>
                 <path d="M50 46 L50 64" />
-                <g data-fore-near>
-                  <path d="M50 64 L50 79" />
-                  <path class="runner__whip" d="M50 79 c -13 7 -29 5 -41 -5" />
-                </g>
+                <g data-fore-near><path d="M50 64 L50 79" /></g>
               </g>
             </g>
           </svg>
@@ -170,8 +168,35 @@
           </button>
         </div>
 
-        <!-- daylight, brightening as the passage runs out -->
+        <!--
+          The way out. It stands at the far end of the tunnel, at the distance
+          the passage is long, and is placed at the same scale as everything
+          else — so it arrives at him exactly as the last character lands.
+        -->
+        <div class="finish" data-finish aria-hidden="true">
+          <svg viewBox="0 0 320 620" preserveAspectRatio="none">
+            <defs>
+              <radialGradient id="day" cx="50%" cy="46%" r="62%">
+                <stop offset="0%" stop-color="#fffaf0" />
+                <stop offset="48%" stop-color="#ffe9c2" />
+                <stop offset="100%" stop-color="#ffcf8e" stop-opacity="0" />
+              </radialGradient>
+            </defs>
+            <path
+              class="finish__sky"
+              d="M96 620 L96 300 Q160 176 224 300 L224 620 Z"
+              fill="url(#day)"
+            />
+            <path
+              class="finish__rock"
+              d="M0 0 H120 L112 292 Q160 190 208 292 L200 0 H320 V620 H236 L240 316 Q160 214 80 316 L84 620 H0 Z"
+            />
+          </svg>
+        </div>
+
+        <!-- daylight reaching further back up the tunnel as the run goes on -->
         <div class="exit" data-exit aria-hidden="true"></div>
+        <div class="daylight" data-daylight aria-hidden="true"></div>
         <div class="vignette" aria-hidden="true"></div>
         <div class="grain" data-grain aria-hidden="true"></div>
       </div>

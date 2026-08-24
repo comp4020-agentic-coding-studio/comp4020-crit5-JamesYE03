@@ -99,9 +99,14 @@ export function pose(phase: number): Pose {
  *
  * Cadence is capped: past the cap the surplus goes into stride length, the way
  * a real runner lengthens rather than turning their legs over faster forever.
+ *
+ * These are 1.5x what they started at, in step with the same multiplier on the
+ * world scale in main.ts — cadence and stride both scale, so the whole thing
+ * simply runs half again as fast rather than taking longer strides at the same
+ * turnover.
  */
-export const CADENCE_AT_THRESHOLD = 3.5;
-export const CADENCE_CAP = 6;
+export const CADENCE_AT_THRESHOLD = 5.25;
+export const CADENCE_CAP = 9;
 
 export function gait(speed: number, baseStep: number): { cadence: number; stepPx: number } {
   if (speed <= 0 || baseStep <= 0) return { cadence: 0, stepPx: Math.max(0, baseStep) };

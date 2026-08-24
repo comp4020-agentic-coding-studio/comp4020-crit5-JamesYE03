@@ -27,7 +27,10 @@ export type Track = {
  * The tunnel is drawn at one scale — so many pixels to the character — and the
  * head start is what sets it: the boulder has to start close enough to be in
  * frame, and that same scale then decides how fast the world goes past. A
- * bigger head start is a gentler game and a slower-looking one.
+ * bigger head start is a gentler game and a slower-looking one. Both were cut
+ * when the world was sped up by half, so the rock still starts in frame: the
+ * scale went up, so the same head start in characters would have put it off
+ * the back of the screen.
  *
  * `thresholdCps` has a floor the spec puts there and not me: the slowest
  * player who survives finishes in `chars / thresholdCps` seconds, and that has
@@ -37,8 +40,8 @@ export type Track = {
  * bar is 3.75 (45 wpm) because that is the game I want, not because the spec
  * pinned it there.
  */
-export const DESKTOP = { thresholdCps: 3.75, headStartChars: 10, sentences: 5 } as const;
-export const PHONE = { thresholdCps: 1.8, headStartChars: 7, sentences: 3 } as const;
+export const DESKTOP = { thresholdCps: 3.75, headStartChars: 6, sentences: 5 } as const;
+export const PHONE = { thresholdCps: 1.8, headStartChars: 4, sentences: 3 } as const;
 
 export type Tuning = typeof DESKTOP | typeof PHONE;
 

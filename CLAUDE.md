@@ -34,6 +34,17 @@ makes him slow, and the boulder closes.
   boulder's screen position is his lead, drawn to scale; once the lead is big
   enough that the boulder leaves the frame, an arrow at the left edge carries the
   distance instead.
+- **The mouth of the cave is a real object**, standing at the distance the
+  passage is long and drawn at the same scale as everything else — so it
+  arrives as the last character lands. The finish line is the passage; there is
+  no separate rule for it. The tunnel lights from grim to daylight across the
+  run (`light()`, on progress squared so the light is an event rather than a
+  fade), and clearing the mouth holds the result back for a beat.
+- **Four scrolling bands at four rates**, with tile widths sharing no useful
+  common factor (1640, 1180, 520, 460) so the combination drifts and does not
+  visibly repeat inside a run. Generated, not drawn, so the stonework can be
+  irregular — and a wall where one block in twelve is simply *missing* does
+  more for "old" than any amount of texture.
 - **One tuning constant decides everything.** `chase.ts` holds the typing rate at
   which runner and boulder move at the same speed. Below it you lose ground,
   above it you gain. Every difficulty complaint is a change to that one number.
