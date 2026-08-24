@@ -156,9 +156,11 @@ and how long is each one.
 That collapsed two settings into one and surfaced something I had not realised
 the spec was constraining. The slowest player who survives finishes in
 `chars / thresholdCps` seconds, and the spec requires an ending inside five
-minutes — so an 853-character passage *forbids* a survival bar below about
-36 wpm. The difficulty was never mine to choose freely; it was set by the
-passage length the moment I picked one. And because the head start now also
+minutes — so the 853-character passage I started with *forbade* a survival bar
+below about 36 wpm. The difficulty was never mine to choose freely; it was set
+by the passage length the moment I picked one. Halving the passage to 429
+characters bought that freedom back, and made a lost run cheap enough to want
+another go straight away. And because the head start now also
 decides how far back the boulder starts on screen, and therefore how fast the
 world looks, being kinder to slow typists literally makes the tunnel go past
 more slowly. Both facts are in `CLAUDE.md` so the next person to reach for the

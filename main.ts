@@ -113,6 +113,22 @@ let stride = 0;
 let travelled = 0;
 /** eased typing rate, so the legs have inertia the keyboard does not */
 let smoothCps = 0;
+/**
+ * The runner's position as *drawn*, in characters.
+ *
+ * `typing.correct` is an integer: it goes up a whole character at a time, and
+ * a character is most of a hundred pixels of tunnel. Drawing the gap straight
+ * from it made the boulder jerk backwards on every keystroke and creep forward
+ * between them — a sawtooth the size of a keystroke. This eases towards it, so
+ * the distance between the two of them only ever changes smoothly.
+ *
+ * The *outcome* still reads `typing.correct`. This is the picture, not the
+ * rule, and the two must not be confused: at a hard sprint this lags by around
+ * half a character, and at the moment that matters — a lead near zero, typing
+ * slow or stopped — it has caught up to exact.
+ */
+let shownCorrect = 0;
+const SHOWN_TAU = 0.1;
 /** how far past the runner the rock has rolled during the crush beat */
 let crushRoll = 0;
 let lastFrame = 0;
@@ -225,7 +241,7 @@ function layout(): void {
   // frame, then let that decide how fast the tunnel goes past.
   const contactX = width / 2 - runnerHeight * (100 / 130) * BODY_HALF;
   const startEdge = boulderSize + width * 0.03;
-  pxPerChar = Math.max((contactX - startEdge) / course.headStartChars, width / 26);
+  pxPerChar = Math.max((contactX - startEdge) / course.headStartChars, width / 28);
   // At the pace the boulder keeps, he runs at CADENCE_AT_THRESHOLD steps a
   // second; faster typing lengthens the stride once the cap is reached.
   baseStep = (course.thresholdCps * pxPerChar) / CADENCE_AT_THRESHOLD;
@@ -253,8 +269,9 @@ function frame(now: number): void {
     // The camera eases; the rock does not. Smoothing here is a camera choice,
     // and it is the only thing in the loop that is smoothed.
     smoothCps = ease(smoothCps, recentCps(stamps, seconds, 1.2), dt);
+    shownCorrect = ease(shownCorrect, typing.correct, dt, SHOWN_TAU, SHOWN_TAU);
     advance(dt, seconds);
-    place(Math.max(0, leadAt(course, typing.correct, seconds)));
+    place(Math.max(0, leadAt(course, shownCorrect, seconds)));
     exit.style.setProperty("--glow", (0.1 + 0.8 * (typing.correct / course.chars)).toFixed(3));
 
     if (verdictNow === "escaped") end("escaped", seconds);
@@ -380,6 +397,7 @@ function reset(): void {
   mistakes = 0;
   stride = 0;
   smoothCps = 0;
+  shownCorrect = 0;
   crushRoll = 0;
   game.dataset.state = "idle";
   delete game.dataset.outcome;

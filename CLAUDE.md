@@ -22,8 +22,9 @@ fast makes the runner fast; typing slowly, or leaving a mistake uncorrected,
 makes him slow, and the boulder closes.
 
 - **The passage is the track.** Finish it without being caught and you escape.
-  Get caught and you're crushed. 853 characters, so a fast typist is out in
-  about two minutes.
+  Get caught and you're crushed. 429 characters — about a minute at 85 wpm,
+  short enough that a death ten seconds in costs nothing to shrug off and
+  play again. The bar for surviving is 45 wpm.
 - **Speed comes from correct characters only.** The runner's speed tracks the
   rate of characters *committed correctly* over the last couple of seconds. A
   wrong character goes red and must be cleared with backspace before the passage
@@ -226,6 +227,11 @@ being pushed rather than falling.
 
 Two consequences worth remembering before touching the tuning:
 
+- **Draw the gap from a smoothed position, decide it from the exact one.**
+  `typing.correct` is an integer and a character is most of a hundred pixels of
+  tunnel, so drawing straight from it makes the boulder jerk backwards once per
+  keystroke. `shownCorrect` eases towards it for the picture; the outcome still
+  reads the integer. Never let those two swap jobs.
 - **The camera and the difficulty are the same number.** `headStartChars` sets
   how far back the boulder starts, which sets `pxPerChar` (it has to be in
   frame), which sets how fast the world goes past. A gentler game is a

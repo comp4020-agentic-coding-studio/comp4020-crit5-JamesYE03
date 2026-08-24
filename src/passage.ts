@@ -5,17 +5,19 @@
 // It is deliberately ordinary prose — common words, no punctuation a keyboard
 // has to hunt for — because the difficulty this week is meant to come from the
 // boulder, not from the spelling.
+//
+// Length is a design decision, not a detail. 429 characters is about a minute
+// at 85 wpm, which makes a lost run cheap to shrug off and play again — the
+// first version ran to 853 and a death at ten seconds cost you a two-minute
+// commitment. It also sets the floor on how gentle the game can be: the
+// slowest survivor takes `chars / thresholdCps` seconds, and the spec gives
+// five minutes to reach an ending. See src/chase.ts.
 export const PASSAGE =
-  "Indiana Jones carefully lifted the ancient golden idol from the stone altar inside the hidden temple. " +
-  "He tried to replace it with a sandbag to trick the old weight trap, but the ancient mechanism still activated at once. " +
-  "The whole tunnel shook and a massive stone boulder broke free from the upper wall. " +
-  "The huge round rock began to roll rapidly down the narrow passage directly behind him. " +
-  "Indy turned instantly and sprinted forward with all his strength. " +
-  "He knew the heavy boulder would crush him instantly if it caught up. " +
-  "The stone gained speed every second and rumbled loudly across the solid ground. " +
-  "He kept running without hesitation, glancing back quickly to check the closing distance. " +
-  "There was no time to slow down or make mistakes. " +
-  "The only way to survive was to keep rushing toward the bright exit ahead and escape the deadly rolling stone.";
+  "Indiana Jones lifted the golden idol from the stone altar and swapped it for a sandbag, but the ancient trap fired at once. " +
+  "The whole tunnel shook and a massive round boulder broke free from the wall behind him. " +
+  "He turned and sprinted, knowing the stone would crush him in a moment if it ever caught up. " +
+  "There was no time at all to slow down or to make mistakes. " +
+  "The only way out was to keep running toward the bright exit ahead.";
 
 /**
  * The first `count` sentences of a passage, trimmed.
