@@ -2,208 +2,46 @@
 
 ## What I built
 
-**BOULDER** — the opening scene of *Raiders of the Lost Ark*, as a typing race.
-A stick figure in a fedora sprints right down a tunnel that runs downhill; a
-stone boulder rolls after him at a constant speed. The player types a fixed
-passage of prose, and the runner's position *is* the number of characters typed
-correctly — so typing fast is running fast, with no fudge factor in between.
-Finish the passage before the boulder reaches you and you escape; fall behind
-its pace and it catches you. Nothing on the page says any of that: this week's
-spec bans instructions outright, so a blinking caret and a boulder straining
-against the wall have to do the whole job of teaching the first move.
-
-I came to it wanting to remake 金山打字通's police-chases-thief typing game, and
-kept the mechanic while changing the scene to the one it is really about — a
-chase you lose by being slow.
+**BOULDER** — the opening of *Raiders of the Lost Ark* as a typing race. The
+runner's position *is* the count of characters typed correctly, so typing fast
+is running fast with no fudge factor between, and an uncorrected mistake stops
+him earning ground while the rock keeps coming. Nothing on the page explains
+any of that.
 
 ## The moments that mattered
 
-### 1. The opening screen I planned would have failed the hardest line in the spec
+### 1. Catching my own opening screen before I built it
 
-My plan had the game open on a floating line of text: **"Type fast to run!"**.
-C4's spec allowed a one-line hint at the top of the page and I had one there, so
-carrying the habit forward felt free. C5's spec is not C4's — *"no instructions
-anywhere, on screen or off"* — and the brief singles that line out as the one
-thing that can't be put under test and can't be faked.
+I had planned to open on a line of text: **"Type fast to run!"**. C4 allowed a
+hint at the top of the page and I had used one, so carrying the habit forward
+felt free. C5 forbids instructions outright, and the brief calls that the one
+line you can neither test nor fake.
 
-The obvious move was to delete the sentence. What I did instead was work out
-what the sentence had been *doing* and build the scene to do it without words:
-the boulder is already trembling loose at the left edge before anything starts,
-and the passage sits below it with a caret blinking on its first character. A
-blinking text caret is the most universally understood "type here" affordance
-there is, and a rock about to fall on someone supplies the urgency the exclamation
-mark was carrying.
+The obvious move was to delete it. Instead I asked what it was *for* — *type
+here*, and *hurry* — and built the scene to do both: a caret blinking on the
+first character, a boulder straining loose behind him.
 
-Then I put it under a sensor rather than trusting myself to remember, and
-mutation-tested the sensor by pasting the original line back into the page — two
-checks go red on it. The rule and the reasoning went into `CLAUDE.md`
-alongside it, including *why* `aria-label` and the meta description are held to
-being descriptive instead of being suppressed.
+Then I wired it to a sensor rather than to my memory. It passed its first
+mutation and failed a second: matching on word boundaries let a hint fused to
+the heading through, because the page read `BOULDERType fast to run!`. Narrow
+the haystack, not the needle — now a rule in `CLAUDE.md`.
 
-[`5a24d5b`](https://github.com/comp4020-agentic-coding-studio/comp4020-crit5-JamesYE03/commit/5a24d5b)
-(the harness rule) and
-[`af28682`](https://github.com/comp4020-agentic-coding-studio/comp4020-crit5-JamesYE03/commit/af28682)
-(`spec/no-instructions.test.ts`).
+[`5a24d5b...c3a0d8b`](https://github.com/comp4020-agentic-coding-studio/comp4020-crit5-JamesYE03/compare/5a24d5b...c3a0d8b)
 
-### 2. Measuring the chase in characters instead of pixels
+### 2. "The running still looks wrong", said three times
 
-The first shape I reached for had a runner speed in pixels per second, a boulder
-speed in pixels per second, and a conversion from typing rate to speed somewhere
-in the middle. Three numbers to tune, all coupled.
+Twice I went to the arms. The third time I checked the maths: SVG rotates
+clockwise while he runs to the right, so a positive angle swings a limb
+*backwards*. The knee fold was tied to the same sine as the thigh, folding the
+heel up while the leg reached forward — a prance, not a run, since the day I
+built the skeleton.
 
-Instead the whole model is measured in **characters**: the runner's position is
-the count of characters typed correctly, the boulder's is a straight line in
-time, and the tunnel is exactly as long as the passage. That collapses the game
-to one tunable number — `thresholdCps` in `src/chase.ts`, the typing rate at
-which the two move as one — and makes "typing fast makes you fast" true by
-construction rather than by calibration. It also made the punishment for a
-mistake fall out for free: an uncorrected red character stops the count from
-rising, so the runner stops earning ground while the boulder keeps coming. There
-is no penalty rule anywhere in the code.
+Nothing I had wired could see it. The tests pin the signs now, but whether a run
+reads as a run is found by watching it.
 
-Because both models are pure functions over plain data, a test can play a whole
-four-minute run in a millisecond. That is what let me check the spec's *"a
-stranger reaches an ending inside five minutes"* line directly, for both the
-desktop and the phone tuning, instead of arguing about it.
-
-[`7efd942`](https://github.com/comp4020-agentic-coding-studio/comp4020-crit5-JamesYE03/commit/7efd942)
-
-### 3. Mutation-testing both new sensors, because C4 taught me not to trust a green check
-
-In C4 I wrote a geometry check that derived the thing it was asserting from the
-thing it was asserting about, so it stayed green with the bell on the wrong side
-of the screen. That lesson is in `CLAUDE.md` as a standing rule, and this week I
-actually followed it on both new sensors before believing either.
-
-Freezing `boulderAt` so the boulder never moves turns five chase tests red —
-without that, *"a slow typist gets caught"* would have been a test that passed
-because the passage is long, not because anything was chasing anyone.
-
-The instruction sensor was the more interesting one, because it passed its
-first mutation and then failed a second. I had written it to match each banned
-phrase on word boundaries, so that naming `no-instructions.test.ts` in the
-README wouldn't trip it. Mutating the page a second way — pasting the hint in
-without whitespace between the tags, so the page text read `BOULDERType fast to
-run!` — walked straight past the lookbehind. The fix was to stop being clever
-about the match and be careful about the input instead: join text nodes with
-spaces, strip code spans and filenames, then use a plain substring test. That
-rule went into `CLAUDE.md` as *narrow the haystack, not the needle*, next to the
-C4 lesson it extends.
-
-One mutation is not a mutation test. You have to break it the way someone
-trying to get past it would.
-
-[`7efd942...af28682`](https://github.com/comp4020-agentic-coding-studio/comp4020-crit5-JamesYE03/compare/7efd942...af28682)
-
-### 4. Playing it produced four corrections, and one of them was a lie the model could see
-
-I played the first working version and sent back four faults: the run cycle was
-a stiff pendulum with no knees, the tunnel floor had a dashed centre line
-(a *road marking*, in a tomb), the boulder read as transparent, and the game
-only ended once the rock had swallowed the runner whole.
-
-The fourth is the one that mattered, because it was not a taste call. The model
-ended the run when the lead hit zero, and the renderer drew the boulder by its
-**centre** — so on screen the rock had been through the runner for most of a
-second before anything happened. The rule and the picture disagreed, and the
-picture is what a player believes. The fix was one line of rendering, not a
-rule change: anchor the boulder by its leading edge, and contact happens
-exactly when the model says it does.
-
-The third was worth checking before acting on. The boulder was not actually
-transparent — it was a solid `#17100a` against a `#1c1109` wall. The complaint
-was real and the diagnosis in it was wrong, and fixing the alpha would have
-fixed nothing. What it needed was a light source.
-
-That round also asked whether the stack was the limit. It wasn't: SVG already
-does skeletons, gradients and tiled texture, and the passage has to stay DOM
-for per-character colour and screen readers. The first version looked like a
-web page because I had used flat fills, not because the renderer couldn't do
-better. That reasoning is in `CLAUDE.md` so the question doesn't get re-litigated
-from scratch in week 8.
-
-[`af28682...HEAD`](https://github.com/comp4020-agentic-coding-studio/comp4020-crit5-JamesYE03/compare/af28682...main)
-
-### 5. A sensor for a bug with no symptoms
-
-Rebuilding the tunnel meant generating SVG tiles and encoding them as data
-URIs, and I wrote `url(%23fire)` — pre-encoding the `#`. `encodeURIComponent`
-then turned it into `%2523`. A data URI a browser cannot parse is not an error:
-it is a background image that silently does not appear. Build green, 77 tests
-green, page black.
-
-There was nothing in the repo that could have caught it, so I wrote
-`spec/scenery.test.ts`: every tile has to parse as XML, every `url(#id)` in it
-has to resolve, and the encoded form has to decode back to exactly what went
-in. Mutation-tested by putting the `%23` back — the round-trip check goes red.
-This is the sensor half of the same lesson as moment 3: the failures worth
-wiring a check for are the ones that look like success.
-
-### 6. Two scales in one world, and the arithmetic the spec was doing behind my back
-
-Playing it again turned up something I had built without noticing: the floor
-scrolled at a speed derived from the gait, and the boulder's rotation came from
-the floor. So the rock spun faster when you typed faster — it was being pushed
-along by the runner rather than falling after him. Its *position* was right the
-whole time, which is why I hadn't seen it.
-
-The fix was to delete a scale rather than add a correction. The scene now has
-one unit and one conversion: the runner's speed, the boulder's speed, the floor
-going past and the rotation all come from `pxPerChar`. The gait stopped being a
-source of speed and became a divider — given a speed, how many steps a second,
-and how long is each one.
-
-That collapsed two settings into one and surfaced something I had not realised
-the spec was constraining. The slowest player who survives finishes in
-`chars / thresholdCps` seconds, and the spec requires an ending inside five
-minutes — so the 853-character passage I started with *forbade* a survival bar
-below about 36 wpm. The difficulty was never mine to choose freely; it was set
-by the passage length the moment I picked one. Halving the passage to 429
-characters bought that freedom back, and made a lost run cheap enough to want
-another go straight away. And because the head start now also
-decides how far back the boulder starts on screen, and therefore how fast the
-world looks, being kinder to slow typists literally makes the tunnel go past
-more slowly. Both facts are in `CLAUDE.md` so the next person to reach for the
-difficulty knob knows what else moves.
-
-### 7. "Still not smooth enough" was three bugs, and only one was the one I'd fixed
-
-The boulder jerked backwards once per keystroke, and the cause was plain
-enough: the gap was drawn from `typing.correct`, an integer, and one character
-is most of a hundred pixels of tunnel. I eased it and it got much better. It
-still was not right, and the interesting part is why.
-
-Two of the three causes had nothing to do with the maths.
-
-**The follower was smooth in position but not in speed.** A first-order ease
-moves fastest at the instant its target changes, so a stepped target still
-comes out as a surge per step. The eye reads speed, not position, so it read
-the surges. Replacing it with a critically damped spring — which carries
-velocity between frames, so the velocity cannot jump either — is what actually
-removed the pulse. `spec/gait.test.ts` now pins that property directly, and
-mutation-testing it by throwing the velocity term away turns it red.
-
-**And I had broken my own performance rule without noticing.** `CLAUDE.md` says
-per frame you touch only `transform` and `opacity`. The boulder had been
-positioned with `left`/`top` since I first drew it, which lays the page out
-again every frame — and `place()` was *also* reading `clientWidth` each frame,
-right after writing styles, which forces that layout to happen synchronously.
-Measuring while drawing, sixty times a second. All the measurements moved into
-`layout()`, which runs on load and on resize, and the rock moved to a
-transform.
-
-The lesson I want to keep is about diagnosis rather than about any of the three
-fixes: "it looks juddery" had one obvious cause and two invisible ones, and
-stopping at the obvious one got me most of the way and then stuck. The two
-rules I had written down myself were both being broken in the same function.
+[`394f82e`](https://github.com/comp4020-agentic-coding-studio/comp4020-crit5-JamesYE03/commit/394f82e)
 
 ## Where to look
 
-- `src/typing.ts` and `src/chase.ts` — the two rules of the game, as pure
-  functions. Everything else is wiring.
-- `spec/game.test.ts` — the two mechanically checkable spec lines.
-- `spec/no-instructions.test.ts` — the third one, and the reasoning about what
-  a sensor can and can't hold.
-- `CLAUDE.md` — carried forward from `comp4020-crit4`, with C4's audio and
-  geometry rules retired and this week's read-the-spec-not-last-week's-habits
-  rule added.
+`src/` holds the rules as pure functions, `spec/` turns them into this week's
+checks, `CLAUDE.md` carries each round's lesson forward.
