@@ -1,23 +1,25 @@
 /*
-  Torch-lit rock: everything is one warm family, with daylight the only cool
-  bright thing in the frame — so the exit reads as the goal without a label.
+  A torch-lit tomb: one warm hue throughout, lightness doing all the work, and
+  daylight the only cool bright thing in the frame — so the exit reads as the
+  goal without a label.
 
-  The tunnel runs downhill to the right. The ground line therefore sits at
-  --ground-left of the stage height on the left edge and --ground-right on the
-  right; main.ts places the boulder along that same line.
+  Performance contract for this file, learned the expensive way: anything that
+  changes every frame changes only `transform` or `opacity`. Textures are baked
+  into tiled images by src/scenery.ts and never filtered live; `feTurbulence`
+  and `blur()` run once at decode time or not at all.
 */
 :root {
   --deep: #0a0705;
-  --rock: #241608;
-  --rock-lit: #4a2c10;
-  --ink: #f2e3c8;
-  --dim: rgba(242, 227, 200, 0.26);
+  --ink: #f2e6cd;
+  --ink-far: #9a836180;
+  --dim: rgba(242, 230, 205, 0.24);
   --amber: #f0a63c;
   --danger: #e2503a;
-  --ground-left: 84%;
-  --ground-right: 92%;
-  --stride: 0.5s;
-  --scroll: 1.6s;
+
+  /* the tunnel runs downhill: this is its grade, and main.ts places the runner
+     and the boulder on the same line the layers are tilted by */
+  --slope: 2.4deg;
+  --ground-y: 78%;
 
   color-scheme: dark;
 }
@@ -37,7 +39,6 @@ body {
   background: var(--deep);
   color: var(--ink);
   font-family: Georgia, "Times New Roman", serif;
-  /* the keyboard is the controller; a stray text selection only gets in the way */
   user-select: none;
   -webkit-user-select: none;
   touch-action: manipulation;
@@ -62,9 +63,9 @@ body {
   color: var(--amber);
 }
 
-/* The site is one page, so the landmark points at it. It carries no
-   information the h1 doesn't; it is here because a page without a navigation
-   landmark is a page a screen-reader user has to guess their way around. */
+/* One page, so the landmark points at it. It carries nothing the h1 doesn't;
+   it is here because a page with no navigation landmark is one a screen-reader
+   user has to guess their way around. */
 .title__nav {
   font-size: 0;
 }
@@ -91,59 +92,209 @@ body {
   position: relative;
   overflow: hidden;
   min-height: 0;
+  background: #0c0805;
 }
 
-.stage__tunnel {
+/* ---------------------------------------------------------------- layers */
+
+/*
+  Each layer is one tiled image, oversized so that rotating it about its own
+  top-left corner never uncovers a stage edge. main.ts writes
+  `rotate(var(--slope)) translate3d(-x, 0, 0)` — rotate first, so the scroll
+  runs *along* the tunnel floor rather than across it.
+*/
+.layer {
+  position: absolute;
+  left: 0;
+  width: calc(100% + 900px);
+  transform-origin: 0 0;
+  background-repeat: repeat-x;
+  will-change: transform;
+}
+
+/* Rotating about the top-left drops the right-hand end, so every band starts
+   above the frame: without the overhang the tilt would uncover a wedge of
+   nothing in the top corner. main.ts sets each background-size. */
+.layer--wall {
+  top: -14%;
+  height: calc(var(--ground-y) + 14%);
+  z-index: 1;
+}
+
+.layer--ceiling {
+  top: -14%;
+  height: 52%;
+  z-index: 2;
+}
+
+.layer--floor {
+  top: var(--ground-y);
+  height: 60%;
+  z-index: 3;
+}
+
+/* The torches are in the wall tile, so their glow scrolls with them; this is
+   the room-scale flicker on top, which costs one composited opacity. */
+.firelight {
   position: absolute;
   inset: 0;
-  width: 100%;
-  height: 100%;
-}
-
-.stage__rock {
-  fill: var(--rock);
-  stroke: var(--rock-lit);
-  stroke-width: 2;
-}
-
-/* The floor, scrolling past. Its speed is the runner's speed, which is why
-   standing still looks like standing still even though the camera never
-   moves. */
-.stage__ground {
-  position: absolute;
-  left: -20%;
-  width: 140%;
-  height: 3px;
-  bottom: 8%;
-  transform-origin: left center;
-  /* the same slope the rock is drawn with */
-  transform: rotate(2.05deg);
-  background-image: repeating-linear-gradient(
-    90deg,
-    rgba(240, 166, 60, 0.5) 0 26px,
-    rgba(240, 166, 60, 0) 26px 74px
+  z-index: 4;
+  pointer-events: none;
+  background: radial-gradient(
+    120% 90% at 62% 58%,
+    rgba(255, 176, 82, 0.13) 0%,
+    rgba(255, 150, 60, 0.05) 45%,
+    transparent 72%
   );
-  background-size: 100px 100%;
-  animation: scroll var(--scroll) linear infinite;
+  animation: flicker 3.7s ease-in-out infinite;
 }
 
-@keyframes scroll {
-  to {
-    background-position-x: -100px;
+@keyframes flicker {
+  0%,
+  100% {
+    opacity: 0.86;
+  }
+  17% {
+    opacity: 1;
+  }
+  38% {
+    opacity: 0.72;
+  }
+  54% {
+    opacity: 0.95;
+  }
+  71% {
+    opacity: 0.8;
   }
 }
 
-.exit {
+/* --------------------------------------------------------------- boulder */
+
+.boulder {
   position: absolute;
-  inset: 0 0 0 auto;
-  width: clamp(80px, 22vw, 320px);
+  left: var(--boulder-x, -40%);
+  top: var(--boulder-y, 40%);
+  height: var(--boulder-size, 34%);
+  aspect-ratio: 1;
+  z-index: 5;
+  transform: translateX(-50%);
+}
+
+.boulder svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+/* The shadow it throws on the flagstones. A gradient, not a blur filter:
+   this element moves every frame. */
+.boulder::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -6%;
+  width: 116%;
+  height: 22%;
+  transform: translateX(-50%);
+  background: radial-gradient(50% 50% at 50% 50%, rgba(0, 0, 0, 0.72), transparent 70%);
   pointer-events: none;
-  background: linear-gradient(
-    90deg,
-    rgba(255, 226, 168, 0) 0%,
-    rgba(255, 226, 168, calc(0.1 + 0.75 * var(--progress, 0))) 100%
-  );
-  filter: blur(2px);
+}
+
+.boulder__body {
+  fill: url(#rock);
+  stroke: #150e07;
+  stroke-width: 3;
+  stroke-linejoin: round;
+}
+
+/* Chipped planes. Each is a flat face at a different angle to the light, which
+   is the difference between a rock and a filled circle. */
+.boulder__facet {
+  stroke: none;
+}
+
+.boulder__facet--lit {
+  fill: rgba(214, 180, 133, 0.17);
+}
+
+.boulder__facet--dark {
+  fill: rgba(12, 8, 4, 0.42);
+}
+
+.boulder__crack {
+  fill: none;
+  stroke: #150e07;
+  stroke-width: 3.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.62;
+}
+
+.boulder__pocket {
+  fill: url(#pit);
+  stroke: rgba(190, 158, 116, 0.22);
+  stroke-width: 1.6;
+}
+
+/* Daylight catching the leading edge — the same edge the chase is decided on. */
+.boulder__rim {
+  fill: none;
+  stroke: rgba(255, 216, 158, 0.62);
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.boulder__dust ellipse {
+  fill: rgba(196, 168, 126, 0.2);
+  animation: puff 1.05s ease-out infinite;
+}
+
+.boulder__dust ellipse:nth-child(2) {
+  animation-duration: 1.35s;
+  animation-delay: -0.5s;
+}
+
+.boulder__dust ellipse:nth-child(3) {
+  animation-duration: 1.6s;
+  animation-delay: -0.9s;
+}
+
+@keyframes puff {
+  from {
+    opacity: 0.42;
+    transform: translate(0, 0) scale(0.5);
+  }
+  to {
+    opacity: 0;
+    transform: translate(-26px, -16px) scale(1.5);
+  }
+}
+
+[data-state="idle"] .boulder__dust {
+  display: none;
+}
+
+/* Before the run starts the boulder has not come loose yet — it is straining
+   against the wall. That tremor is the whole opening invitation on the scene
+   side; the caret below is the other half. */
+.boulder__spin {
+  transform-box: view-box;
+  transform-origin: 100px 100px;
+}
+
+[data-state="idle"] .boulder__spin {
+  animation: tremble 0.15s linear infinite;
+}
+
+@keyframes tremble {
+  0%,
+  100% {
+    transform: translate(0, 0) rotate(-1.1deg);
+  }
+  50% {
+    transform: translate(2.5px, -1.5px) rotate(1.1deg);
+  }
 }
 
 /* --------------------------------------------------------------- runner */
@@ -151,9 +302,10 @@ body {
 .runner {
   position: absolute;
   left: 50%;
-  bottom: 12%;
-  height: clamp(84px, 25%, 190px);
+  top: var(--runner-y, 40%);
+  height: var(--runner-size, 25%);
   aspect-ratio: 100 / 130;
+  z-index: 6;
   transform: translateX(-50%);
 }
 
@@ -163,178 +315,76 @@ body {
   overflow: visible;
 }
 
-.runner__head,
-.runner__hat-crown,
-.runner__hat-brim {
-  fill: var(--ink);
-}
-
-.runner__body path,
-.runner__body,
-.runner__arm path,
-.runner__leg path,
-.runner__whip {
+.runner path {
   fill: none;
   stroke: var(--ink);
-  stroke-width: 5;
+  stroke-width: 5.4;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
 
-.runner__whip {
-  stroke-width: 2.6;
-  opacity: 0.75;
+.runner__head,
+.runner__hat-crown,
+.runner__hat-brim {
+  fill: var(--ink);
+  stroke: none;
 }
 
-/* Limbs pivot about the joint they hang from, in viewBox units. */
-.runner__arm,
-.runner__leg,
-.runner__bob {
-  transform-box: view-box;
-}
-
-.runner__arm {
-  transform-origin: 49px 52px;
-}
-
-.runner__leg {
-  transform-origin: 47px 78px;
-}
-
-.runner__bob,
-.runner__arm,
-.runner__leg,
-.boulder__spin {
-  animation-duration: var(--stride);
-  animation-timing-function: ease-in-out;
-  animation-iteration-count: infinite;
-}
-
-.runner__bob {
-  animation-name: bob;
-  transform-origin: 50px 130px;
-}
-
-.runner__leg--near {
-  animation-name: swing-back;
-}
-.runner__leg--far {
-  animation-name: swing-forward;
-}
-.runner__arm--near {
-  animation-name: swing-forward;
-}
-.runner__arm--far {
-  animation-name: swing-back;
-}
-
-@keyframes swing-forward {
-  0%,
-  100% {
-    transform: rotate(26deg);
-  }
-  50% {
-    transform: rotate(-26deg);
-  }
-}
-
-@keyframes swing-back {
-  0%,
-  100% {
-    transform: rotate(-26deg);
-  }
-  50% {
-    transform: rotate(26deg);
-  }
-}
-
-@keyframes bob {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-4px);
-  }
-}
-
-/* -------------------------------------------------------------- boulder */
-
-.boulder {
-  position: absolute;
-  left: var(--boulder-x, -40%);
-  bottom: var(--boulder-bottom, 16%);
-  height: clamp(96px, 34%, 260px);
-  aspect-ratio: 1;
-  transform: translate(-50%, 24%);
-}
-
-.boulder svg {
-  width: 100%;
-  height: 100%;
-}
-
-.boulder__body {
-  fill: #17100a;
-  stroke: var(--ink);
+.runner__neck {
   stroke-width: 4;
 }
 
-.boulder__crack {
-  fill: none;
-  stroke: var(--ink);
-  stroke-width: 2.6;
-  stroke-linecap: round;
-  opacity: 0.7;
+.runner__foot {
+  stroke-width: 4.6;
 }
 
-.boulder__pit {
-  fill: none;
-  stroke: var(--ink);
-  stroke-width: 2.2;
-  opacity: 0.55;
+.runner__whip {
+  stroke: rgba(242, 230, 205, 0.62);
+  stroke-width: 2.4;
 }
 
-.boulder__spin {
-  transform-origin: 60px 60px;
-  animation-name: roll;
-  animation-timing-function: linear;
-  animation-duration: 1.15s;
+/* The far arm and leg sit behind the body, so they are dimmer. Depth for the
+   price of one colour. */
+.limb--far path {
+  stroke: var(--ink-far);
+  stroke-width: 4.6;
 }
 
-@keyframes roll {
-  to {
-    transform: rotate(360deg);
-  }
+/* ---------------------------------------------------------------- light */
+
+.exit {
+  position: absolute;
+  inset: 0 0 0 auto;
+  width: clamp(90px, 26vw, 380px);
+  z-index: 7;
+  pointer-events: none;
+  /* static gradient; only `opacity` moves, so this never re-rasterises */
+  background: linear-gradient(
+    90deg,
+    rgba(255, 232, 186, 0) 0%,
+    rgba(255, 236, 196, 0.55) 68%,
+    rgba(255, 246, 224, 0.92) 100%
+  );
+  opacity: var(--glow, 0.1);
 }
 
-/* Nobody is running: legs and floor stop, the boulder does not. That is the
-   only feedback a player needs to connect "I stopped typing" with "it is
-   getting closer". */
-.is-still .runner__bob,
-.is-still .runner__arm,
-.is-still .runner__leg,
-.is-still .stage__ground {
-  animation-play-state: paused;
+.vignette {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  pointer-events: none;
+  background: radial-gradient(120% 96% at 50% 46%, transparent 42%, rgba(6, 4, 2, 0.82) 100%);
 }
 
-/* Before the run starts the boulder has not come loose yet — it is straining
-   against the wall. That tremor is the whole opening invitation on the scene
-   side: something bad is about to happen and the caret is blinking. */
-[data-state="idle"] .boulder__spin {
-  animation-name: tremble;
-  animation-duration: 0.16s;
-  animation-timing-function: linear;
-}
-
-@keyframes tremble {
-  0%,
-  100% {
-    transform: translate(0, 0) rotate(-1.2deg);
-  }
-  50% {
-    transform: translate(2px, -1px) rotate(1.2deg);
-  }
+/* Film grain, baked into a still image by src/scenery.ts. */
+.grain {
+  position: absolute;
+  inset: 0;
+  z-index: 9;
+  pointer-events: none;
+  opacity: 0.2;
+  mix-blend-mode: overlay;
+  background-repeat: repeat;
 }
 
 /* -------------------------------------------------------------- tracker */
@@ -344,14 +394,15 @@ body {
 .tracker {
   position: absolute;
   left: clamp(0.4rem, 2vw, 1.4rem);
-  bottom: 15%;
+  top: var(--tracker-y, 62%);
+  z-index: 10;
   display: none;
   align-items: center;
   gap: 0.3rem;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: clamp(0.8rem, 1.8vw, 1.05rem);
   color: var(--amber);
-  opacity: 0.85;
+  text-shadow: 0 0 10px rgba(0, 0, 0, 0.9);
 }
 
 .tracker[data-visible] {
@@ -368,6 +419,33 @@ body {
   opacity: 0.6;
 }
 
+/* --------------------------------------------------------------- crush */
+
+/* The beat between being caught and being told so: the rock rolls over him and
+   the frame takes the hit. */
+[data-state="crushing"] .stage {
+  animation: shake 0.3s linear;
+}
+
+@keyframes shake {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  20% {
+    transform: translate(-7px, 4px);
+  }
+  40% {
+    transform: translate(6px, -3px);
+  }
+  60% {
+    transform: translate(-4px, -4px);
+  }
+  80% {
+    transform: translate(3px, 3px);
+  }
+}
+
 /* -------------------------------------------------------------- passage */
 
 .passage {
@@ -377,7 +455,7 @@ body {
   height: calc(var(--lines) * 1.75em + 1.6rem);
   padding: 0.8rem clamp(0.75rem, 4vw, 3rem);
   border-top: 1px solid rgba(240, 166, 60, 0.16);
-  background: #080604;
+  background: #0b0805;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: clamp(0.95rem, 1.35vw + 0.55rem, 1.55rem);
   line-height: 1.75;
@@ -423,7 +501,8 @@ body {
   animation: blink 1.05s steps(2, jump-none) infinite;
 }
 
-[data-state="running"] .caret::before {
+[data-state="running"] .caret::before,
+[data-state="crushing"] .caret::before {
   animation: none;
 }
 
@@ -452,13 +531,13 @@ body {
 .result {
   position: absolute;
   inset: 0;
+  z-index: 20;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: clamp(0.8rem, 3vh, 2rem);
-  background: rgba(6, 4, 3, 0.86);
-  backdrop-filter: blur(3px);
+  background: rgba(8, 5, 3, 0.86);
   animation: fade 320ms ease-out;
 }
 
@@ -510,7 +589,7 @@ body {
   width: clamp(3rem, 9vw, 4rem);
   aspect-ratio: 1;
   padding: 0;
-  border: 1px solid rgba(242, 227, 200, 0.3);
+  border: 1px solid rgba(242, 230, 205, 0.3);
   border-radius: 50%;
   background: none;
   color: var(--ink);
@@ -542,22 +621,22 @@ body {
   .passage {
     --lines: 2;
   }
-
-  .runner {
-    height: clamp(70px, 30%, 130px);
-  }
-
-  .boulder {
-    height: clamp(78px, 38%, 170px);
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .runner__bob,
-  .runner__arm,
-  .runner__leg,
-  .boulder__spin,
-  .stage__ground,
+  /* Locomotion stays — it is the game's core feedback, and removing it would
+     leave a player unable to tell whether they are running. The decoration
+     that exists only to move does not. */
+  .firelight,
+  .boulder__dust ellipse,
+  [data-state="idle"] .boulder__spin {
+    animation: none;
+  }
+
+  [data-state="crushing"] .stage {
+    animation: none;
+  }
+
   .caret::before {
     animation: none;
   }

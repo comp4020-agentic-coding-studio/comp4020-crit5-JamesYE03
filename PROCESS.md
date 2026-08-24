@@ -95,6 +95,50 @@ trying to get past it would.
 
 [`7efd942...af28682`](https://github.com/comp4020-agentic-coding-studio/comp4020-crit5-JamesYE03/compare/7efd942...af28682)
 
+### 4. Playing it produced four corrections, and one of them was a lie the model could see
+
+I played the first working version and sent back four faults: the run cycle was
+a stiff pendulum with no knees, the tunnel floor had a dashed centre line
+(a *road marking*, in a tomb), the boulder read as transparent, and the game
+only ended once the rock had swallowed the runner whole.
+
+The fourth is the one that mattered, because it was not a taste call. The model
+ended the run when the lead hit zero, and the renderer drew the boulder by its
+**centre** — so on screen the rock had been through the runner for most of a
+second before anything happened. The rule and the picture disagreed, and the
+picture is what a player believes. The fix was one line of rendering, not a
+rule change: anchor the boulder by its leading edge, and contact happens
+exactly when the model says it does.
+
+The third was worth checking before acting on. The boulder was not actually
+transparent — it was a solid `#17100a` against a `#1c1109` wall. The complaint
+was real and the diagnosis in it was wrong, and fixing the alpha would have
+fixed nothing. What it needed was a light source.
+
+That round also asked whether the stack was the limit. It wasn't: SVG already
+does skeletons, gradients and tiled texture, and the passage has to stay DOM
+for per-character colour and screen readers. The first version looked like a
+web page because I had used flat fills, not because the renderer couldn't do
+better. That reasoning is in `CLAUDE.md` so the question doesn't get re-litigated
+from scratch in week 8.
+
+[`af28682...HEAD`](https://github.com/comp4020-agentic-coding-studio/comp4020-crit5-JamesYE03/compare/af28682...main)
+
+### 5. A sensor for a bug with no symptoms
+
+Rebuilding the tunnel meant generating SVG tiles and encoding them as data
+URIs, and I wrote `url(%23fire)` — pre-encoding the `#`. `encodeURIComponent`
+then turned it into `%2523`. A data URI a browser cannot parse is not an error:
+it is a background image that silently does not appear. Build green, 77 tests
+green, page black.
+
+There was nothing in the repo that could have caught it, so I wrote
+`spec/scenery.test.ts`: every tile has to parse as XML, every `url(#id)` in it
+has to resolve, and the encoded form has to decode back to exactly what went
+in. Mutation-tested by putting the `%23` back — the round-trip check goes red.
+This is the sensor half of the same lesson as moment 3: the failures worth
+wiring a check for are the ones that look like success.
+
 ## Where to look
 
 - `src/typing.ts` and `src/chase.ts` — the two rules of the game, as pure

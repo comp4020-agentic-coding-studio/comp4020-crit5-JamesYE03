@@ -214,6 +214,57 @@ things bite:
   the previous sound off, which is exactly why the per-keystroke click is
   synthesised instead of a file.
 
+### SVG is not the ceiling; flat art was
+
+Worth writing down because it came up as "should we change stack for a better
+picture". No. The scene is a skeleton (`<g>` inside `<g>`, one rotation each),
+gradients, and tiled texture — all of which SVG does natively and Canvas would
+make me hand-roll, and the passage has to stay DOM anyway for per-character
+colour, wrapping and screen readers. What made the first version look like a
+web page rather than a tomb was flat fills and a dashed line, not the renderer.
+The rules layer is pure and stack-free, so a switch would buy a rewrite of the
+only part that was already fine. Revisit **only** for thousands of particles or
+per-pixel lighting, and then as a Canvas layer *added* beside the DOM, not a
+rewrite.
+
+Two rules make this stack fast enough, and both are easy to break by accident:
+
+- **Per frame, touch only `transform` and `opacity`.** Anything else repaints.
+  The first version animated a gradient behind `filter: blur(2px)` on the exit
+  glow — a full re-rasterise every frame for an effect a static gradient plus a
+  changing opacity gives for free.
+- **Bake texture into images, never filter live.** `feTurbulence` inside a
+  `background-image` data URI is rasterised once at decode; the same filter on
+  a live element re-runs forever. `src/scenery.ts` generates every tile this
+  way.
+
+### Data URIs: write `#` literally, encode once
+
+`svgUrl()` runs `encodeURIComponent` over the whole SVG string. So the source
+must contain a bare `url(#fire)` and bare `#rrggbb` colours — pre-encoding them
+as `%23` yields `%2523`, and the browser silently drops the background image.
+Green build, green tests, black rectangle. `spec/scenery.test.ts` is the sensor
+for this, because nothing else in the repo can see it.
+
+Colours inside SVG **presentation attributes** stay hex. Attribute colour
+parsing is older and narrower than a stylesheet's, and an unreadable colour is
+a black shape rather than an error.
+
+### Animating from JavaScript, not keyframes
+
+Changing `animation-duration` on a running CSS animation makes it jump: the
+browser recomputes where in the timeline it now is. Anything whose speed varies
+continuously — the run cycle, the world scrolling past — is therefore driven
+from a phase accumulator in the rAF loop (`stride`, `travelled` in `main.ts`),
+with the pose itself a pure function in `src/runner.ts`. CSS keyframes are kept
+for the things that run at a fixed rate regardless: the caret blink, the torch
+flicker, the idle tremble.
+
+Set limb rotations with the SVG `transform` **attribute**, not the CSS
+property: the attribute's rotation centre is in the element's own local
+coordinates, which is what makes a knee nested inside a rotating thigh compose
+correctly.
+
 ### Keyboard input, and the mobile soft keyboard
 
 - **The keyboard is the controller this week**, so the page must never lose

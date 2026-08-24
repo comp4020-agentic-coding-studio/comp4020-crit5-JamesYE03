@@ -13,7 +13,7 @@
     -->
     <meta
       name="description"
-      content="A stick figure in a fedora sprints down a collapsing tunnel while a stone boulder rolls after him."
+      content="A stick figure in a fedora sprints down a collapsing tomb tunnel while a stone boulder rolls after him."
     />
 
     <meta property="og:type" content="website" />
@@ -33,46 +33,64 @@
         The scene. The runner is pinned to the middle of the frame and the
         world moves past him, so the boulder's position on screen IS the lead:
         no separate gauge to read, and nothing to explain.
+
+        Every layer is one tiled image (built in src/scenery.ts) moved with a
+        single transform. Nothing here repaints per frame.
       -->
       <div class="stage" data-stage>
-        <svg
-          class="stage__tunnel"
-          viewBox="0 0 1200 400"
-          preserveAspectRatio="none"
-          aria-hidden="true"
-        >
-          <defs>
-            <linearGradient id="depth" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0%" stop-color="#0a0705" />
-              <stop offset="62%" stop-color="#1c1109" />
-              <stop offset="100%" stop-color="#3a1f0c" />
-            </linearGradient>
-          </defs>
-          <rect width="1200" height="400" fill="url(#depth)" />
-          <!-- ceiling and floor: jagged rock, and the floor runs downhill to
-               the right, which is why the boulder is a problem -->
-          <path
-            class="stage__rock"
-            d="M0 0 H1200 V150 L1120 146 L1040 152 L960 142 L880 148 L800 138 L720 144 L640 134 L560 140 L480 130 L400 136 L320 126 L240 132 L160 122 L80 128 L0 118 Z"
-          />
-          <path
-            class="stage__rock"
-            d="M0 400 H1200 V368 L1120 364 L1040 370 L960 360 L880 366 L800 356 L720 362 L640 352 L560 358 L480 348 L400 354 L320 344 L240 350 L160 340 L80 346 L0 336 Z"
-          />
-        </svg>
+        <div class="layer layer--wall" data-layer-wall aria-hidden="true"></div>
+        <div class="layer layer--ceiling" data-layer-ceiling aria-hidden="true"></div>
+        <div class="layer layer--floor" data-layer-floor aria-hidden="true"></div>
 
-        <!-- the floor the two of them are actually on, scrolling past -->
-        <div class="stage__ground" data-ground></div>
+        <!-- torchlight, breathing -->
+        <div class="firelight" aria-hidden="true"></div>
 
-        <div class="boulder" data-boulder>
-          <svg viewBox="0 0 120 120" aria-hidden="true">
-            <g class="boulder__spin">
-              <circle class="boulder__body" cx="60" cy="60" r="54" />
-              <path class="boulder__crack" d="M28 42 L52 54 L40 74 L64 88" />
-              <path class="boulder__crack" d="M86 34 L74 56 L94 68" />
-              <path class="boulder__crack" d="M56 16 L62 38" />
-              <circle class="boulder__pit" cx="82" cy="88" r="7" />
-              <circle class="boulder__pit" cx="34" cy="92" r="4.5" />
+        <div class="boulder" data-boulder aria-hidden="true">
+          <svg viewBox="0 0 200 200">
+            <defs>
+              <!-- lit from the upper right, because that is where the daylight
+                   the runner is heading for comes from -->
+              <radialGradient id="rock" cx="68%" cy="26%" r="82%">
+                <stop offset="0%" stop-color="#b09068" />
+                <stop offset="30%" stop-color="#836848" />
+                <stop offset="62%" stop-color="#4d3b27" />
+                <stop offset="100%" stop-color="#20170e" />
+              </radialGradient>
+              <radialGradient id="pit" cx="40%" cy="34%" r="70%">
+                <stop offset="0%" stop-color="#2c2115" />
+                <stop offset="100%" stop-color="#170f08" />
+              </radialGradient>
+            </defs>
+
+            <g class="boulder__spin" data-boulder-spin>
+              <!-- Solid, and irregular: a perfect circle reads as a logo. -->
+              <path
+                class="boulder__body"
+                d="M100 12 L128 18 L154 33 L172 57 L182 88 L180 118 L166 146 L142 168 L114 180 L84 182 L56 172 L32 152 L16 124 L10 94 L17 62 L37 35 L64 18 Z"
+              />
+              <!-- chipped faces, each a flat plane catching a different amount
+                   of light — this is what makes it read as rock and not a ball -->
+              <path class="boulder__facet boulder__facet--lit" d="M100 12 L154 33 L138 66 L92 52 Z" />
+              <path class="boulder__facet boulder__facet--dark" d="M32 152 L84 182 L88 146 L44 126 Z" />
+              <path class="boulder__facet boulder__facet--dark" d="M10 94 L17 62 L52 74 L44 106 Z" />
+              <path class="boulder__facet boulder__facet--lit" d="M172 57 L182 88 L152 96 L146 66 Z" />
+              <path class="boulder__crack" d="M92 52 L104 88 L78 110 L88 146" />
+              <path class="boulder__crack" d="M146 66 L120 92 L152 118" />
+              <path class="boulder__crack" d="M44 106 L78 110" />
+              <ellipse class="boulder__pocket" cx="128" cy="132" rx="16" ry="12" />
+              <ellipse class="boulder__pocket" cx="62" cy="60" rx="9" ry="7" />
+            </g>
+
+            <!-- Stays put while the rock turns: the daylight behind it does not
+                 rotate. It also happens to draw the exact edge the chase is
+                 decided on. -->
+            <path class="boulder__rim" d="M154 33 L172 57 L182 88 L180 118 L166 146" />
+
+            <!-- what it kicks up, trailing behind on the left -->
+            <g class="boulder__dust">
+              <ellipse cx="26" cy="176" rx="26" ry="15" />
+              <ellipse cx="-6" cy="168" rx="20" ry="12" />
+              <ellipse cx="-36" cy="178" rx="30" ry="16" />
             </g>
           </svg>
         </div>
@@ -90,24 +108,57 @@
             role="img"
             aria-label="A stick figure in a wide-brimmed hat running, a whip trailing from one hand, with a stone boulder rolling behind him."
           >
-            <g class="runner__bob">
-              <!-- whip, trailing back over the shoulder -->
-              <path class="runner__whip" d="M62 58 C 40 40, 18 46, 6 62" />
-              <!-- the hat is doing most of the work of saying who this is -->
-              <path class="runner__hat-crown" d="M39 24 C 40 12, 60 12, 61 24 Z" />
-              <ellipse class="runner__hat-brim" cx="50" cy="25" rx="21" ry="4.4" />
-              <circle class="runner__head" cx="50" cy="33" r="8.5" />
-              <path class="runner__body" d="M50 42 L47 78" />
-              <g class="runner__arm runner__arm--near"><path d="M49 52 L64 58" /></g>
-              <g class="runner__arm runner__arm--far"><path d="M49 52 L34 60" /></g>
-              <g class="runner__leg runner__leg--near"><path d="M47 78 L60 104 L57 122" /></g>
-              <g class="runner__leg runner__leg--far"><path d="M47 78 L33 100 L36 120" /></g>
+            <!--
+              A skeleton, not a drawing: hip → thigh → knee → shin, and
+              shoulder → upper arm → elbow → forearm. main.ts sets one rotation
+              on each group per frame from src/runner.ts, which is what lets the
+              gait speed up and slow down without the animation jumping.
+            -->
+            <g data-bob>
+              <g class="limb limb--far" data-leg-far>
+                <path d="M48 74 L48 98" />
+                <g data-shin-far>
+                  <path d="M48 98 L48 120" />
+                  <path class="runner__foot" d="M48 120 L58 122" />
+                </g>
+              </g>
+
+              <g class="limb limb--far" data-arm-far>
+                <path d="M50 46 L50 64" />
+                <g data-fore-far><path d="M50 64 L50 79" /></g>
+              </g>
+
+              <g data-torso>
+                <path class="runner__spine" d="M50 46 L48 74" />
+                <path class="runner__neck" d="M51 38 L50 46" />
+                <circle class="runner__head" cx="51" cy="31" r="8.4" />
+                <path class="runner__hat-crown" d="M40 25 C 41 12, 62 12, 63 25 Z" />
+                <ellipse class="runner__hat-brim" cx="51" cy="25.5" rx="21" ry="4.2" />
+              </g>
+
+              <g class="limb limb--near" data-leg-near>
+                <path d="M48 74 L48 98" />
+                <g data-shin-near>
+                  <path d="M48 98 L48 120" />
+                  <path class="runner__foot" d="M48 120 L58 122" />
+                </g>
+              </g>
+
+              <g class="limb limb--near" data-arm-near>
+                <path d="M50 46 L50 64" />
+                <g data-fore-near>
+                  <path d="M50 64 L50 79" />
+                  <path class="runner__whip" d="M50 79 c -13 7 -29 5 -41 -5" />
+                </g>
+              </g>
             </g>
           </svg>
         </div>
 
         <!-- daylight, brightening as the passage runs out -->
         <div class="exit" data-exit aria-hidden="true"></div>
+        <div class="vignette" aria-hidden="true"></div>
+        <div class="grain" data-grain aria-hidden="true"></div>
       </div>
 
       <!--
