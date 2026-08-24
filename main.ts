@@ -15,6 +15,7 @@ import {
   type Level,
   type Outcome,
 } from "./src/chase";
+import { ZOOM_NEAR, zoomFor } from "./src/camera";
 import { PASSAGE, opening } from "./src/passage";
 import {
   CADENCE_AT_THRESHOLD,
@@ -44,6 +45,7 @@ const el = <T extends Element>(name: string): T => {
 
 const game = el<HTMLElement>("game");
 const stage = el<HTMLElement>("stage");
+const world = el<HTMLElement>("world");
 const boulder = el<HTMLElement>("boulder");
 const boulderSpin = el<SVGGElement>("boulder-spin");
 const runner = el<HTMLElement>("runner");
@@ -102,7 +104,12 @@ const GROUND_AT_LEFT = 0.78;
 /** How thick his back is, for deciding when the rock has reached it. */
 const BODY_HALF = 0.09;
 const CRUSH_MS = 420;
-const BURST_MS = 620;
+/* The finish, in two beats: the island slides in until it fills the frame and
+ * freezes, and then he runs out of shot across it. Only after that does the
+ * result arrive — the run ends on getting away, not on a number appearing. */
+const BURST_SLIDE_MS = 420;
+const BURST_RUN_MS = 900;
+
 /** The world runs half again as fast as it first did, at your asking. Paired
  *  with the same multiplier on the cadence in src/runner.ts. */
 const PACE = 1.5;
@@ -157,6 +164,12 @@ let smoothCps = 0;
  */
 let shownCorrect: Damped = { value: 0, velocity: 0 };
 const SHOWN_SMOOTH = 0.16;
+/** The camera's pull-back, eased the same way the runner's position is: a zoom
+ *  that snapped to each keystroke would be worse than no zoom at all. */
+let zoom: Damped = { value: ZOOM_NEAR, velocity: 0 };
+const ZOOM_SMOOTH = 0.55;
+let burstZoom = ZOOM_NEAR;
+let burstOvershoot = 0;
 
 /*
  * Geometry, measured once per layout and never again.
@@ -297,6 +310,9 @@ function place(lead: number): void {
   boulder.style.transform = `translate3d(${leftX.toFixed(2)}px, ${y.toFixed(2)}px, 0)`;
 }
 
+/** The geometry the camera reasons about, gathered from the cached layout. */
+const cameraFrame = () => ({ width: stageW, pxPerChar, boulderSize });
+
 function layout(): void {
   stageH = stage.clientHeight;
   stageW = stage.clientWidth;
@@ -304,8 +320,11 @@ function layout(): void {
   boulderSize = Math.min(300, Math.max(92, Math.min(stageH * 0.4, stageW * 0.26)));
   // Wide and tall enough that once its left edge has passed the runner it
   // covers everything, and its ground line can be lined up with the tunnel's.
-  outsideW = Math.max(stageW * 1.6, stageH * 2.6);
-  outsideH = stageH * 1.45;
+  // Big enough to still cover the frame with the camera pulled all the way
+  // back, since it is what stands between the player and a scrolling corridor
+  // once they are through the mouth.
+  outsideW = Math.max(stageW * 2.6, stageH * 3.4);
+  outsideH = stageH * 2.4;
   outside.style.setProperty("--outside-width", `${outsideW}px`);
   outside.style.setProperty("--outside-height", `${outsideH}px`);
   contactX = stageW / 2 - runnerH * (100 / 130) * BODY_HALF;
@@ -318,6 +337,18 @@ function layout(): void {
   boulder.style.setProperty("--boulder-size", `${boulderSize}px`);
   tracker.style.setProperty("--tracker-y", `${(groundAt(0, stageH) - boulderSize * 0.5).toFixed(1)}px`);
   game.style.setProperty("--ground-y", `${(GROUND_AT_LEFT * stageH).toFixed(1)}px`);
+
+  // The bands have to reach past the frame on both sides once the camera pulls
+  // back, and the pivot has to stay at the frame's left edge so widening them
+  // does not move where the slope begins.
+  // Enough overhang to cover the frame with the camera most of the way back.
+  // Not all the way: at full pull-back the outermost strip is under the
+  // vignette anyway, and a band four times the width of the screen is a lot of
+  // texture for a browser to hold.
+  const pad = stageW * 0.85;
+  game.style.setProperty("--layer-left", `${-pad.toFixed(1)}px`);
+  game.style.setProperty("--layer-width", `${(stageW + pad * 2 + 1640).toFixed(1)}px`);
+  game.style.setProperty("--layer-origin", `${pad.toFixed(1)}px`);
 
   // Fix the scale so that at the head start the whole rock is just inside the
   // frame, then let that decide how fast the tunnel goes past.
@@ -354,8 +385,11 @@ function frame(now: number): void {
     // and it is the only thing in the loop that is smoothed.
     smoothCps = ease(smoothCps, recentCps(stamps, seconds, 1.2), dt);
     shownCorrect = smoothDamp(shownCorrect, typing.correct, dt, SHOWN_SMOOTH);
+    const lead = Math.max(0, leadAt(course, shownCorrect.value, seconds));
+    zoom = smoothDamp(zoom, zoomFor(lead, cameraFrame()), dt, ZOOM_SMOOTH);
+    world.style.transform = `scale(${zoom.value.toFixed(4)})`;
     advance(dt, seconds);
-    place(Math.max(0, leadAt(course, shownCorrect.value, seconds)));
+    place(lead);
     placeOutside(shownCorrect.value);
     light(shownCorrect.value / course.chars);
 
@@ -365,14 +399,27 @@ function frame(now: number): void {
   }
 
   if (phase === "bursting") {
-    // Out. The camera runs on for a beat while the frame washes out, so the
-    // run ends on getting clear rather than on a number appearing.
-    const done = Math.min(1, (now - burstAt) / BURST_MS);
-    smoothCps = ease(smoothCps, course.thresholdCps * 1.4, dt, 0.3, 0.3);
-    shownCorrect = { value: course.chars + done * 26, velocity: 0 };
-    advance(dt, (burstAt - startedAt) / 1000);
-    placeOutside(shownCorrect.value);
-    if (done >= 1) end("escaped", (burstAt - startedAt) / 1000);
+    const t = now - burstAt;
+    const at = (burstAt - startedAt) / 1000;
+
+    if (t < BURST_SLIDE_MS) {
+      // Beat one: the island slides the rest of the way in, until the tunnel
+      // is off the back of the frame entirely.
+      const p = t / BURST_SLIDE_MS;
+      shownCorrect = { value: course.chars + p * burstOvershoot, velocity: 0 };
+      advance(dt, at);
+      placeOutside(shownCorrect.value);
+      return;
+    }
+
+    // Beat two: the island is a still background now, and he runs across it
+    // and out of shot on his own legs.
+    const p = Math.min(1, (t - BURST_SLIDE_MS) / BURST_RUN_MS);
+    const away = stageW / 2 / burstZoom + runnerH;
+    runner.style.setProperty("--runner-x", `${(p * away).toFixed(1)}px`);
+    stride += Math.PI * gait(away / (BURST_RUN_MS / 1000), baseStep).cadence * dt;
+    drawRunner();
+    if (p >= 1) end("escaped", at);
     return;
   }
 
@@ -472,12 +519,20 @@ function onBackspace(): void {
   paint();
 }
 
-/** Out: hold the result back for a beat while he clears the mouth. */
+/** Out: hold the result back while the island settles and he clears the shot. */
 function burst(seconds: number): void {
   phase = "bursting";
   burstAt = startedAt + seconds * 1000;
   game.dataset.state = "bursting";
-  sound.sting("escaped");
+  // Freeze the camera here: the two beats below both depend on the scale, and
+  // a zoom still drifting underneath them would fight the framing.
+  burstZoom = zoom.value;
+  // Far enough for the island's left edge to clear the left of the frame.
+  const covered = stageW / 2 - stageW / (2 * burstZoom);
+  burstOvershoot = Math.max(2, (contactX - covered) / pxPerChar + 1);
+  // He is past it and it is behind the island anyway.
+  boulder.style.visibility = "hidden";
+  delete tracker.dataset.visible;
 }
 
 /** Caught: freeze the model, let the rock roll over him, then say so. */
@@ -502,6 +557,7 @@ function end(what: Outcome, seconds: number): void {
   );
   statSeconds.textContent = seconds.toFixed(1);
   result.hidden = false;
+  if (what === "escaped") sound.sting("escaped");
 }
 
 function reset(): void {
@@ -513,6 +569,7 @@ function reset(): void {
   stride = 0;
   smoothCps = 0;
   shownCorrect = { value: 0, velocity: 0 };
+  zoom = { value: ZOOM_NEAR, velocity: 0 };
   crushRoll = 0;
   shownDistance = -1;
   game.dataset.state = "idle";
@@ -520,6 +577,9 @@ function reset(): void {
   result.hidden = true;
   sound.stopMusic();
   boulderSpin.style.transform = "";
+  boulder.style.visibility = "visible";
+  runner.style.setProperty("--runner-x", "0px");
+  world.style.transform = `scale(${ZOOM_NEAR})`;
   layout();
   // scroll() was only ever called from advance(), so at rest the layers never
   // received their rotation and the opening screen showed a level tunnel.

@@ -30,6 +30,17 @@ makes him slow, and the boulder closes.
   wrong character goes red and must be cleared with backspace before the passage
   advances --- so a mistake stops the runner dead, and the punishment is
   built into the model rather than bolted on as a rule.
+- **The camera pulls back as the gap opens** (`src/camera.ts`), so the rock
+  stays in frame instead of being gone two seconds into a good run. It is a
+  real zoom on a wrapper around the world — sizes *and* distances — not a
+  squashing of the distances, and it is eased with the same critically damped
+  spring the drawn position uses, because a zoom that snapped to each keystroke
+  would be worse than no zoom. `zoomFor` is solved rather than tuned: it is the
+  scale at which the rock still fits the half-frame behind him. The two ends,
+  `ZOOM_NEAR` and `ZOOM_FAR`, are the only knobs, and they trade directly
+  against apparent speed — pulling further back keeps the rock in shot longer
+  and makes everything look slower. Overlays (torchlight, vignette, grain, the
+  tracker, the buttons) stay outside the wrapper, at screen scale.
 - **The camera holds the runner in the centre.** The world scrolls past him. The
   boulder's screen position is his lead, drawn to scale; once the lead is big
   enough that the boulder leaves the frame, an arrow at the left edge carries the
@@ -44,7 +55,10 @@ makes him slow, and the boulder closes.
   offsets it vertically so the sand carries straight on from the flagstones.
   The tunnel lights from grim to daylight across the run (`light()`, on
   progress squared so the light arrives as an event rather than a fade), and
-  clearing the mouth holds the result back for a beat.
+  clearing the mouth plays out in two beats before the result: the island
+  slides the rest of the way in and freezes, and then he runs across it and out
+  of shot on his own legs. The result and its sting arrive only after that, so
+  the run ends on getting away rather than on a number appearing.
 - **Four scrolling bands at four rates**, with tile widths sharing no useful
   common factor (1640, 1180, 520, 460) so the combination drifts and does not
   visibly repeat inside a run. Generated, not drawn, so the stonework can be

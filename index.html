@@ -38,13 +38,18 @@
         single transform. Nothing here repaints per frame.
       -->
       <div class="stage" data-stage>
+        <!--
+          The camera. Everything inside is the world and scales together, so
+          zooming out shows more tunnel rather than squashing the distances in
+          it. Overlays (torchlight, vignette, grain, the tracker, the result)
+          stay outside, at screen scale.
+        -->
+        <div class="world" data-world>
+        <div class="backdrop" aria-hidden="true"></div>
         <div class="layer layer--wall" data-layer-wall aria-hidden="true"></div>
         <div class="layer layer--props" data-layer-props aria-hidden="true"></div>
         <div class="layer layer--ceiling" data-layer-ceiling aria-hidden="true"></div>
         <div class="layer layer--floor" data-layer-floor aria-hidden="true"></div>
-
-        <!-- torchlight, breathing -->
-        <div class="firelight" aria-hidden="true"></div>
 
         <div class="boulder" data-boulder aria-hidden="true">
           <svg viewBox="0 0 200 200">
@@ -96,13 +101,17 @@
           </svg>
         </div>
 
-        <!-- when the boulder is far enough back to leave the frame, this
-             carries the distance instead -->
-        <div class="tracker" data-tracker aria-hidden="true">
-          <svg viewBox="0 0 24 24"><path d="M17 3 L7 12 L17 21 Z" /></svg>
-          <span data-tracker-distance>0</span><span class="tracker__unit">m</span>
-        </div>
 
+
+
+
+        <!--
+          The way out — and the end of the tunnel. Not a marker that floats
+          towards you: this is the world on the other side, drawn *over* the
+          tunnel bands, with its left edge at the mouth. Once it has passed the
+          runner it covers the frame, so there is no more tunnel behind him.
+        -->
+        <div class="outside" data-outside aria-hidden="true"></div>
         <div class="runner" data-runner>
           <svg
             viewBox="0 0 100 130"
@@ -152,6 +161,18 @@
             </g>
           </svg>
         </div>
+        </div>
+
+        <!-- torchlight, breathing. Outside the camera: it is the room, not a
+             thing in it. -->
+        <div class="firelight" aria-hidden="true"></div>
+
+        <!-- when the boulder is far enough back to leave the frame, this
+             carries the distance instead -->
+        <div class="tracker" data-tracker aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M17 3 L7 12 L17 21 Z" /></svg>
+          <span data-tracker-distance>0</span><span class="tracker__unit">m</span>
+        </div>
 
         <!--
           Two settings, on the opening screen only. Difficulty names, not a
@@ -167,14 +188,6 @@
             hard
           </button>
         </div>
-
-        <!--
-          The way out — and the end of the tunnel. Not a marker that floats
-          towards you: this is the world on the other side, drawn *over* the
-          tunnel bands, with its left edge at the mouth. Once it has passed the
-          runner it covers the frame, so there is no more tunnel behind him.
-        -->
-        <div class="outside" data-outside aria-hidden="true"></div>
 
         <!-- daylight reaching further back up the tunnel as the run goes on -->
         <div class="exit" data-exit aria-hidden="true"></div>
