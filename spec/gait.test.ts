@@ -61,24 +61,33 @@ describe("the run cycle", () => {
 });
 
 describe("gait: cadence is capped, ground speed is not", () => {
+  // A step of 40px at the pace the boulder keeps; the numbers below are
+  // multiples of the speed that produces exactly that.
+  const STEP = 40;
+  const PACE = STEP * 3.5;
+
   it("turns the legs over faster the faster you type", () => {
-    expect(gait(0.5).cadence).toBeLessThan(gait(1).cadence);
-    expect(gait(0).cadence).toBe(0);
+    expect(gait(PACE / 2, STEP).cadence).toBeLessThan(gait(PACE, STEP).cadence);
+    expect(gait(0, STEP).cadence).toBe(0);
   });
 
   it("caps the cadence rather than letting the legs blur", () => {
-    expect(gait(4).cadence).toBe(CADENCE_CAP);
+    expect(gait(PACE * 4, STEP).cadence).toBe(CADENCE_CAP);
   });
 
-  it("puts the speed a capped runner cannot take in cadence into stride", () => {
-    // Ground covered is cadence × stride, and it has to stay proportional to
-    // typing rate at every speed or the world stops matching the model.
-    const speed = (n: number) => {
-      const g = gait(n);
-      return g.cadence * g.strideScale;
-    };
-    expect(speed(2) / speed(1)).toBeCloseTo(2, 6);
-    expect(speed(4) / speed(1)).toBeCloseTo(4, 6);
+  it("covers exactly the ground it was given, at every speed", () => {
+    // This is the whole contract between the runner and the world: cadence ×
+    // stride *is* the speed, so the feet cannot drift against the floor going
+    // past — including past the cap, where the stride takes up the slack.
+    for (const speed of [PACE / 3, PACE, PACE * 2, PACE * 5]) {
+      const g = gait(speed, STEP);
+      expect(g.cadence * g.stepPx).toBeCloseTo(speed, 6);
+    }
+  });
+
+  it("lengthens the stride only once the cadence is capped", () => {
+    expect(gait(PACE, STEP).stepPx).toBeCloseTo(STEP, 6);
+    expect(gait(PACE * 4, STEP).stepPx).toBeGreaterThan(STEP);
   });
 });
 

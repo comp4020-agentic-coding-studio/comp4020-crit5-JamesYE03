@@ -122,12 +122,12 @@ describe("spec: play ends somewhere", () => {
   it("a long enough stall is fatal even to a fast typist", () => {
     // Pairs with "a mistake earns no ground until it is cleared" above: a
     // mistake left on screen *is* a stall, and this is what a stall costs.
-    const run = simulate(DESKTOP_TRACK, (s) => (s > 40 && s < 65 ? 0 : 5));
+    const run = simulate(DESKTOP_TRACK, (s) => (s > 10 && s < 30 ? 0 : 5));
     expect(run.outcome).toBe("caught");
   });
 
   it("the run is still winnable after a short stumble", () => {
-    const run = simulate(DESKTOP_TRACK, (s) => (s > 40 && s < 45 ? 0 : 5));
+    const run = simulate(DESKTOP_TRACK, (s) => (s > 10 && s < 14 ? 0 : 5));
     expect(run.outcome).toBe("escaped");
   });
 });

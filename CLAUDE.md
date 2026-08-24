@@ -214,6 +214,27 @@ things bite:
   the previous sound off, which is exactly why the per-keystroke click is
   synthesised instead of a file.
 
+### One world, one scale
+
+The scene has exactly one unit — the model's character — and one conversion,
+`pxPerChar`. The runner's speed, the boulder's speed, the floor going past and
+the boulder's rotation all come from it. Any quantity that gets its own private
+scale will look wrong in a way that is very hard to name: the second version of
+this game scrolled the floor from the gait and turned the boulder from the
+floor, so the rock sped up and slowed down with the typing, as though it were
+being pushed rather than falling.
+
+Two consequences worth remembering before touching the tuning:
+
+- **The camera and the difficulty are the same number.** `headStartChars` sets
+  how far back the boulder starts, which sets `pxPerChar` (it has to be in
+  frame), which sets how fast the world goes past. A gentler game is a
+  slower-looking one. There is no third knob.
+- **Smooth the camera, never the world.** `smoothCps` exists so the picture
+  eases when the typing stops and starts. The boulder's position comes straight
+  from the model, unsmoothed, because it is the thing the player is being
+  judged against.
+
 ### SVG is not the ceiling; flat art was
 
 Worth writing down because it came up as "should we change stack for a better

@@ -139,6 +139,31 @@ in. Mutation-tested by putting the `%23` back — the round-trip check goes red.
 This is the sensor half of the same lesson as moment 3: the failures worth
 wiring a check for are the ones that look like success.
 
+### 6. Two scales in one world, and the arithmetic the spec was doing behind my back
+
+Playing it again turned up something I had built without noticing: the floor
+scrolled at a speed derived from the gait, and the boulder's rotation came from
+the floor. So the rock spun faster when you typed faster — it was being pushed
+along by the runner rather than falling after him. Its *position* was right the
+whole time, which is why I hadn't seen it.
+
+The fix was to delete a scale rather than add a correction. The scene now has
+one unit and one conversion: the runner's speed, the boulder's speed, the floor
+going past and the rotation all come from `pxPerChar`. The gait stopped being a
+source of speed and became a divider — given a speed, how many steps a second,
+and how long is each one.
+
+That collapsed two settings into one and surfaced something I had not realised
+the spec was constraining. The slowest player who survives finishes in
+`chars / thresholdCps` seconds, and the spec requires an ending inside five
+minutes — so an 853-character passage *forbids* a survival bar below about
+36 wpm. The difficulty was never mine to choose freely; it was set by the
+passage length the moment I picked one. And because the head start now also
+decides how far back the boulder starts on screen, and therefore how fast the
+world looks, being kinder to slow typists literally makes the tunnel go past
+more slowly. Both facts are in `CLAUDE.md` so the next person to reach for the
+difficulty knob knows what else moves.
+
 ## Where to look
 
 - `src/typing.ts` and `src/chase.ts` — the two rules of the game, as pure

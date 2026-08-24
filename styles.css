@@ -11,7 +11,6 @@
 :root {
   --deep: #0a0705;
   --ink: #f2e6cd;
-  --ink-far: #9a836180;
   --dim: rgba(242, 230, 205, 0.24);
   --amber: #f0a63c;
   --danger: #e2503a;
@@ -343,11 +342,11 @@ body {
   stroke-width: 2.4;
 }
 
-/* The far arm and leg sit behind the body, so they are dimmer. Depth for the
-   price of one colour. */
+/* Every limb is the same colour and the same weight. The far arm and leg were
+   dimmer for depth, and it read as a drawing mistake rather than as distance —
+   a stick figure has four limbs made of the same line. */
 .limb--far path {
-  stroke: var(--ink-far);
-  stroke-width: 4.6;
+  stroke: var(--ink);
 }
 
 /* ---------------------------------------------------------------- light */

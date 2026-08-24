@@ -7,6 +7,7 @@ import { createSound } from "./src/audio";
 import {
   DESKTOP,
   PHONE,
+  boulderAt,
   leadAt,
   outcome,
   recentCps,
@@ -14,7 +15,7 @@ import {
   type Outcome,
 } from "./src/chase";
 import { PASSAGE, opening } from "./src/passage";
-import { ease, gait, pose } from "./src/runner";
+import { CADENCE_AT_THRESHOLD, ease, gait, pose } from "./src/runner";
 import { ceilingTile, floorTile, grainTile, svgUrl, wallTile } from "./src/scenery";
 import { backspace, isFinished, press, start, type Typing } from "./src/typing";
 
@@ -74,11 +75,27 @@ const sound = createSound();
 const SLOPE = Math.tan((2.4 * Math.PI) / 180);
 /** Where the floor sits at the left edge of the frame. */
 const GROUND_AT_LEFT = 0.78;
-/** How much tunnel one stride covers, as a multiple of the runner's height. */
-const STEP_PER_HEIGHT = 0.82;
 /** How thick his back is, for deciding when the rock has reached it. */
 const BODY_HALF = 0.09;
-const CRUSH_MS = 300;
+const CRUSH_MS = 420;
+
+/*
+ * One world, one scale.
+ *
+ * Everything on screen is measured in the model's own unit — characters — times
+ * `pxPerChar`. The runner's speed is his typing rate; the boulder's is the
+ * constant `thresholdCps`; the floor goes past at the runner's speed because
+ * the camera rides with him. Nothing gets its own private scale, which is what
+ * stopped the rock spinning faster whenever the typing did.
+ *
+ * The scale itself is chosen from the geometry: put the boulder just fully
+ * inside the left edge at the moment the run begins, and the head start
+ * decides everything else. `width / 26` is a floor for narrow screens, where
+ * the honest scale would leave the world crawling.
+ */
+let pxPerChar = 12;
+/** how far the runner covers in one stride at the pace the boulder keeps */
+let baseStep = 40;
 
 type Phase = "idle" | "running" | "crushing" | "over";
 
@@ -169,7 +186,6 @@ function drawRunner(): void {
 function place(lead: number): void {
   const width = stage.clientWidth;
   const height = stage.clientHeight;
-  const pxPerChar = Math.min(15, Math.max(4.5, width / 110));
   const size = boulder.clientWidth;
   const runnerX = width / 2;
 
@@ -194,7 +210,7 @@ function layout(): void {
   const height = stage.clientHeight;
   const width = stage.clientWidth;
   const runnerHeight = Math.min(200, Math.max(80, height * 0.27));
-  const boulderSize = Math.min(300, Math.max(96, height * 0.42));
+  const boulderSize = Math.min(300, Math.max(92, Math.min(height * 0.42, width * 0.3)));
 
   runner.style.setProperty("--runner-size", `${runnerHeight}px`);
   runner.style.setProperty(
@@ -204,6 +220,15 @@ function layout(): void {
   boulder.style.setProperty("--boulder-size", `${boulderSize}px`);
   tracker.style.setProperty("--tracker-y", `${(groundAt(0, height) - boulderSize * 0.5).toFixed(1)}px`);
   game.style.setProperty("--ground-y", `${(GROUND_AT_LEFT * height).toFixed(1)}px`);
+
+  // Fix the scale so that at the head start the whole rock is just inside the
+  // frame, then let that decide how fast the tunnel goes past.
+  const contactX = width / 2 - runnerHeight * (100 / 130) * BODY_HALF;
+  const startEdge = boulderSize + width * 0.03;
+  pxPerChar = Math.max((contactX - startEdge) / course.headStartChars, width / 26);
+  // At the pace the boulder keeps, he runs at CADENCE_AT_THRESHOLD steps a
+  // second; faster typing lengthens the stride once the cap is reached.
+  baseStep = (course.thresholdCps * pxPerChar) / CADENCE_AT_THRESHOLD;
 }
 
 function scroll(): void {
@@ -225,8 +250,10 @@ function frame(now: number): void {
     const finished = isFinished(typing, text);
     const verdictNow = outcome(course, typing.correct, seconds, finished);
 
+    // The camera eases; the rock does not. Smoothing here is a camera choice,
+    // and it is the only thing in the loop that is smoothed.
     smoothCps = ease(smoothCps, recentCps(stamps, seconds, 1.2), dt);
-    advance(dt);
+    advance(dt, seconds);
     place(Math.max(0, leadAt(course, typing.correct, seconds)));
     exit.style.setProperty("--glow", (0.1 + 0.8 * (typing.correct / course.chars)).toFixed(3));
 
@@ -236,28 +263,45 @@ function frame(now: number): void {
   }
 
   if (phase === "crushing") {
-    // he is down; the rock keeps going, and the camera keeps up for a beat
-    const t = (now - caughtAt) / CRUSH_MS;
-    crushRoll = Math.min(1, t) * boulder.clientWidth * 0.8;
-    smoothCps = ease(smoothCps, 0, dt, 0.2, 0.2);
-    advance(dt);
+    // He is down, so the camera stops with him — but the boulder has never
+    // taken any notice of him and does not start now. It rolls on at the same
+    // speed it has held all run, straight over the top.
+    const done = Math.min(1, (now - caughtAt) / CRUSH_MS);
+    const seconds = (caughtAt - startedAt) / 1000 + (done * CRUSH_MS) / 1000;
+    crushRoll = done * (CRUSH_MS / 1000) * course.thresholdCps * pxPerChar;
+    rollBoulder(seconds);
     place(0);
-    if (t >= 1) end("caught", (caughtAt - startedAt) / 1000);
+    if (done >= 1) end("caught", (caughtAt - startedAt) / 1000);
   }
 }
 
-/** Move the run cycle and the world by the same amount, so a step always
- *  covers a step's worth of tunnel. */
-function advance(dt: number): void {
-  const { cadence, strideScale } = gait(smoothCps / course.thresholdCps);
-  const stepPx = runner.clientHeight * STEP_PER_HEIGHT * strideScale;
+/**
+ * Move the runner and the world he is running over.
+ *
+ * Both come from the same speed, so a step always covers a step's worth of
+ * tunnel, and both stop when he stops typing. The boulder is not in here.
+ */
+function advance(dt: number, seconds: number): void {
+  const speed = smoothCps * pxPerChar;
+  const { cadence, stepPx } = gait(speed, baseStep);
   stride += Math.PI * cadence * dt;
   travelled += cadence * stepPx * dt;
   drawRunner();
   scroll();
-  // Rolling without slipping: one turn per circumference of ground covered.
+  rollBoulder(seconds);
+}
+
+/**
+ * Turn the boulder by how far *it* has come, which is a straight line in time
+ * and has nothing to do with the runner.
+ *
+ * Getting this from the world scroll was the bug: the rock sped up and slowed
+ * down with the typing, as though it were being pushed rather than falling.
+ */
+function rollBoulder(seconds: number): void {
   const radius = Math.max(1, boulder.clientWidth / 2);
-  boulderSpin.style.transform = `rotate(${((travelled / radius) * (180 / Math.PI)).toFixed(1)}deg)`;
+  const rolled = (boulderAt(course, seconds) + course.headStartChars) * pxPerChar;
+  boulderSpin.style.transform = `rotate(${((rolled / radius) * (180 / Math.PI)).toFixed(1)}deg)`;
 }
 
 // ------------------------------------------------------------------- input

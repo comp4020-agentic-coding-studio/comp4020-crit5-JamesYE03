@@ -34,8 +34,10 @@ const ARM_SWING = 38;
 const KNEE_MIN = 16;
 /** and folds right up when the heel kicks out behind */
 const KNEE_MAX = 98;
-const ELBOW_MIN = 52;
-const ELBOW_MAX = 34;
+/** A runner's elbow sits at a right angle and stays there — it is the arm's
+ *  resting shape, not part of the swing. Only the shoulder swings. */
+const ELBOW = 90;
+const ELBOW_PLAY = 7;
 const BOB = 4.2;
 
 function limb(phase: number): Limb {
@@ -53,7 +55,7 @@ function limb(phase: number): Limb {
   // Arms oppose the leg on the same side; that opposition is what stops a
   // running figure reading as a marching one.
   const upperArm = -ARM_SWING * swing;
-  const foreArm = -(ELBOW_MIN + ELBOW_MAX * (0.5 + 0.5 * swing));
+  const foreArm = -(ELBOW + ELBOW_PLAY * swing);
 
   return { thigh, shin, upperArm, foreArm };
 }
@@ -69,20 +71,25 @@ export function pose(phase: number): Pose {
 }
 
 /**
- * Steps per second, and how long each step covers, for a typing rate.
+ * How to run at a given ground speed: how many steps a second, and how far
+ * each one covers.
  *
- * Cadence is capped: past the cap the extra speed goes into stride length
- * instead, which is what a real runner does and what stops the legs turning
- * into a blur at 90 wpm. Ground speed stays proportional to typing rate either
- * way, so "one step, one step's worth of tunnel" holds at every speed.
+ * Speed is the input, not the output. The tunnel is one world with one scale —
+ * the runner's speed comes from the model, in pixels a second — and the gait's
+ * only job is to divide that into steps so the feet match the ground going
+ * past. `cadence * stepPx === speed` at every speed, which is what makes "one
+ * step, one step's worth of tunnel" true rather than tuned.
+ *
+ * Cadence is capped: past the cap the surplus goes into stride length, the way
+ * a real runner lengthens rather than turning their legs over faster forever.
  */
 export const CADENCE_AT_THRESHOLD = 3.5;
 export const CADENCE_CAP = 6;
 
-export function gait(normalisedSpeed: number): { cadence: number; strideScale: number } {
-  const wanted = CADENCE_AT_THRESHOLD * Math.max(0, normalisedSpeed);
-  const cadence = Math.min(CADENCE_CAP, wanted);
-  return { cadence, strideScale: cadence > 0 ? wanted / cadence : 1 };
+export function gait(speed: number, baseStep: number): { cadence: number; stepPx: number } {
+  if (speed <= 0 || baseStep <= 0) return { cadence: 0, stepPx: Math.max(0, baseStep) };
+  const cadence = Math.min(CADENCE_CAP, speed / baseStep);
+  return { cadence, stepPx: speed / cadence };
 }
 
 /**

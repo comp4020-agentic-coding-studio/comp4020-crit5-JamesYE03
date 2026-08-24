@@ -22,8 +22,22 @@ export type Track = {
  * These are the numbers to move when the game plays too hard or too easy.
  * Nothing else in the game is a difficulty dial.
  */
-export const DESKTOP = { thresholdCps: 3.6, headStartChars: 30, sentences: 10 } as const;
-export const PHONE = { thresholdCps: 1.8, headStartChars: 18, sentences: 3 } as const;
+/*
+ * `headStartChars` is now also a *camera* number, not only a difficulty one.
+ * The tunnel is drawn at one scale — so many pixels to the character — and the
+ * head start is what sets it: the boulder has to start close enough to be in
+ * frame, and that same scale then decides how fast the world goes past. A
+ * bigger head start is a gentler game and a slower-looking one.
+ *
+ * `thresholdCps` has a floor the spec puts there and not me: the slowest
+ * player who survives finishes in `chars / thresholdCps` seconds, and that has
+ * to come in under the five minutes the spec allows to reach an ending. At 853
+ * characters that forbids anything below about 2.85 characters a second, which
+ * is why the bar for surviving this passage is around 36 wpm. Shortening the
+ * passage is the only lever that lowers it.
+ */
+export const DESKTOP = { thresholdCps: 3.0, headStartChars: 10, sentences: 10 } as const;
+export const PHONE = { thresholdCps: 1.8, headStartChars: 7, sentences: 3 } as const;
 
 export type Tuning = typeof DESKTOP | typeof PHONE;
 
