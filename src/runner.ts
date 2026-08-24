@@ -60,6 +60,23 @@ function limb(phase: number): Limb {
   return { thigh, shin, upperArm, foreArm };
 }
 
+/**
+ * The set position: crouched, weight forward, back leg loaded, ready to go.
+ *
+ * Deliberately not `pose(0)`, which stands him upright with his feet together
+ * — a figure waiting rather than a figure about to bolt. The opening screen
+ * has to carry urgency without a word on it, and a sprinter's crouch under a
+ * boulder straining against the wall is most of how it does that.
+ */
+export function ready(): Pose {
+  return {
+    bob: 3,
+    lean: 24,
+    near: { thigh: 26, shin: -78, upperArm: -34, foreArm: -96 },
+    far: { thigh: -30, shin: -14, upperArm: 40, foreArm: -84 },
+  };
+}
+
 export function pose(phase: number): Pose {
   return {
     // Two rises per cycle: he is highest at mid-flight, on each side.

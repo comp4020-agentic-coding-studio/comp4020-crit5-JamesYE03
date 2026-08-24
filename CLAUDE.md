@@ -37,6 +37,12 @@ makes him slow, and the boulder closes.
 - **One tuning constant decides everything.** `chase.ts` holds the typing rate at
   which runner and boulder move at the same speed. Below it you lose ground,
   above it you gain. Every difficulty complaint is a change to that one number.
+- **Two settings on the opening screen**, normal (45 wpm) and hard (60 wpm), as
+  a multiplier so the phone's lower bar takes the same step up. They are
+  difficulty *names* and nothing else: no wpm figure on the buttons, because a
+  number that says "words per minute" hands a player the mechanic before they
+  have touched anything, and this week's spec forbids exactly that. Ignoring
+  them and just typing starts a normal run.
 
 Non-negotiables from the published spec, in the terms that bite here:
 

@@ -42,10 +42,24 @@ export const PHONE = { thresholdCps: 1.8, headStartChars: 7, sentences: 3 } as c
 
 export type Tuning = typeof DESKTOP | typeof PHONE;
 
-export function track(passage: string, tuning: Tuning): Track {
+/**
+ * The two settings, as a multiplier on whatever pace the device asks for.
+ *
+ * A multiplier rather than a second pair of numbers: the phone's bar is lower
+ * than the desktop's because thumbs are slower, and "hard" should mean the
+ * same *step up* on either. 45 wpm and 60 wpm are the desktop figures.
+ */
+export const DIFFICULTY = {
+  normal: 1,
+  hard: 60 / 45,
+} as const;
+
+export type Level = keyof typeof DIFFICULTY;
+
+export function track(passage: string, tuning: Tuning, level: Level = "normal"): Track {
   return {
     chars: passage.length,
-    thresholdCps: tuning.thresholdCps,
+    thresholdCps: tuning.thresholdCps * DIFFICULTY[level],
     headStartChars: tuning.headStartChars,
   };
 }

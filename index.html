@@ -155,6 +155,21 @@
           </svg>
         </div>
 
+        <!--
+          Two settings, on the opening screen only. Difficulty names, not a
+          how-to-play: they say nothing about what the game is or how it is
+          played, so the caret below is still the only thing teaching the first
+          move. Ignoring them entirely and just typing starts a normal run.
+        -->
+        <div class="levels" role="group" aria-label="Difficulty" data-levels>
+          <button class="level" type="button" data-level="normal" aria-pressed="true">
+            normal
+          </button>
+          <button class="level" type="button" data-level="hard" aria-pressed="false">
+            hard
+          </button>
+        </div>
+
         <!-- daylight, brightening as the passage runs out -->
         <div class="exit" data-exit aria-hidden="true"></div>
         <div class="vignette" aria-hidden="true"></div>

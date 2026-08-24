@@ -12,10 +12,19 @@ import {
   outcome,
   recentCps,
   track,
+  type Level,
   type Outcome,
 } from "./src/chase";
 import { PASSAGE, opening } from "./src/passage";
-import { CADENCE_AT_THRESHOLD, ease, gait, pose, smoothDamp, type Damped } from "./src/runner";
+import {
+  CADENCE_AT_THRESHOLD,
+  ease,
+  gait,
+  pose,
+  ready,
+  smoothDamp,
+  type Damped,
+} from "./src/runner";
 import { ceilingTile, floorTile, grainTile, svgUrl, wallTile } from "./src/scenery";
 import { backspace, isFinished, press, start, type Typing } from "./src/typing";
 
@@ -67,7 +76,8 @@ grain.style.backgroundImage = svgUrl(grainTile());
 // spec/game.test.ts.
 const tuning = window.matchMedia("(pointer: coarse)").matches ? PHONE : DESKTOP;
 const text = opening(PASSAGE, tuning.sentences);
-const course = track(text, tuning);
+let level: Level = "normal";
+let course = track(text, tuning, level);
 
 const sound = createSound();
 
@@ -195,8 +205,7 @@ const turn = (node: SVGGElement, degrees: number, cx: number, cy: number): void 
   node.setAttribute("transform", `rotate(${degrees.toFixed(2)} ${cx} ${cy})`);
 };
 
-function drawRunner(): void {
-  const p = pose(stride);
+function drawRunner(p = pose(stride)): void {
   bobGroup.setAttribute("transform", `translate(0 ${p.bob.toFixed(2)})`);
   turn(torsoGroup, p.lean, 48, 74);
 
@@ -428,7 +437,10 @@ function reset(): void {
   sound.stopMusic();
   boulderSpin.style.transform = "";
   layout();
-  drawRunner();
+  // scroll() was only ever called from advance(), so at rest the layers never
+  // received their rotation and the opening screen showed a level tunnel.
+  scroll();
+  drawRunner(ready());
   place(course.headStartChars);
   exit.style.setProperty("--glow", "0.1");
   paint();
@@ -480,8 +492,24 @@ again.addEventListener("click", () => {
   capture.focus({ preventScroll: true });
 });
 
+for (const button of document.querySelectorAll<HTMLButtonElement>("[data-level]")) {
+  button.addEventListener("click", () => {
+    const chosen = button.dataset.level as Level;
+    if (chosen === level) return;
+    level = chosen;
+    course = track(text, tuning, level);
+    for (const other of document.querySelectorAll<HTMLButtonElement>("[data-level]")) {
+      other.setAttribute("aria-pressed", String(other.dataset.level === level));
+    }
+    // The pace is baked into the scale and the stride, so both have to be
+    // worked out again before anything is drawn at the new setting.
+    reset();
+  });
+}
+
 window.addEventListener("resize", () => {
   layout();
+  scroll();
   scrollToCaret();
   if (phase !== "running") place(course.headStartChars);
 });

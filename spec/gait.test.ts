@@ -5,7 +5,15 @@
 // that a later change to the maths cannot quietly undo them.
 
 import { describe, expect, it } from "vitest";
-import { CADENCE_CAP, ease, gait, pose, smoothDamp, type Damped } from "../src/runner";
+import {
+  CADENCE_CAP,
+  ease,
+  gait,
+  pose,
+  ready,
+  smoothDamp,
+  type Damped,
+} from "../src/runner";
 
 const TURN = Math.PI * 2;
 /** a cycle sampled finely enough to catch a sign flip anywhere in it */
@@ -57,6 +65,33 @@ describe("the run cycle", () => {
   it("is continuous across the wrap, so the loop has no hitch in it", () => {
     expect(pose(0).near.thigh).toBeCloseTo(pose(TURN).near.thigh, 6);
     expect(pose(0).bob).toBeCloseTo(pose(TURN).bob, 6);
+  });
+});
+
+describe("the set position", () => {
+  // The opening screen has to say "something is about to happen" with no words
+  // on it. A figure standing with its feet together does not.
+  const set = ready();
+
+  it("is not the standing pose the cycle happens to start on", () => {
+    expect(set.near.thigh).not.toBeCloseTo(pose(0).near.thigh, 1);
+    expect(set.lean).toBeGreaterThan(pose(0).lean);
+  });
+
+  it("splits the legs, one loaded and one reaching", () => {
+    expect(Math.sign(set.near.thigh)).toBe(-Math.sign(set.far.thigh));
+  });
+
+  it("keeps the arms opposed to the legs, as in the cycle", () => {
+    expect(Math.sign(set.near.upperArm)).toBe(-Math.sign(set.near.thigh));
+    expect(Math.sign(set.far.upperArm)).toBe(-Math.sign(set.far.thigh));
+  });
+
+  it("bends no joint backwards", () => {
+    for (const limb of [set.near, set.far]) {
+      expect(limb.shin).toBeLessThanOrEqual(0);
+      expect(limb.foreArm).toBeLessThanOrEqual(0);
+    }
   });
 });
 

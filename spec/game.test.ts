@@ -132,6 +132,28 @@ describe("spec: play ends somewhere", () => {
   });
 });
 
+describe("the two settings", () => {
+  const hard = track(PASSAGE, DESKTOP, "hard");
+
+  it("hard is a faster boulder, not a longer tunnel", () => {
+    expect(hard.thresholdCps).toBeGreaterThan(DESKTOP_TRACK.thresholdCps);
+    expect(hard.chars).toBe(DESKTOP_TRACK.chars);
+    expect(hard.headStartChars).toBe(DESKTOP_TRACK.headStartChars);
+  });
+
+  it("is 45 wpm and 60 wpm on a desktop", () => {
+    // Five characters to a word, sixty seconds to a minute.
+    expect((DESKTOP_TRACK.thresholdCps * 60) / 5).toBeCloseTo(45, 6);
+    expect((hard.thresholdCps * 60) / 5).toBeCloseTo(60, 6);
+  });
+
+  it("catches on hard someone who would have got out on normal", () => {
+    const between = steady((DESKTOP_TRACK.thresholdCps + hard.thresholdCps) / 2);
+    expect(simulate(DESKTOP_TRACK, between).outcome).toBe("escaped");
+    expect(simulate(hard, between).outcome).toBe("caught");
+  });
+});
+
 describe("spec: the boulder is what catches you", () => {
   // Guards against the test above passing for the wrong reason. A chase test
   // that would still be green with the boulder standing still is a test of
@@ -163,6 +185,15 @@ describe("spec: a stranger reaches an ending inside five minutes", () => {
     // Anyone slower than this is caught, and being caught is an ending too —
     // so this is the longest a run can possibly last.
     for (const t of [DESKTOP_TRACK, PHONE_TRACK]) {
+      const run = simulate(t, steady(t.thresholdCps + 0.01));
+      expect(run.outcome).toBe("escaped");
+      expect(run.seconds).toBeLessThan(FIVE_MINUTES);
+    }
+  });
+
+  it("holds on the hard setting too", () => {
+    for (const tuning of [DESKTOP, PHONE]) {
+      const t = track(opening(PASSAGE, tuning.sentences), tuning, "hard");
       const run = simulate(t, steady(t.thresholdCps + 0.01));
       expect(run.outcome).toBe("escaped");
       expect(run.seconds).toBeLessThan(FIVE_MINUTES);
