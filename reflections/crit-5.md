@@ -1,37 +1,31 @@
 # C5 — A game
 
-> **Draft — James, this needs your own words before the cutoff.** Everything
-> below happened; the two `TO WRITE` lines are the part I can't write for you,
-> and they are the part the marker is actually asking about.
-
 ## The breakthrough
 
-It was catching my own opening screen before I built it.
+Separating the mechanic from the scene.
 
-I had planned to open on a line of floating text — "Type fast to run!" — and it
-felt like the safe option, because it is roughly what I did in C4, where a hint
-line sat at the top of the page and the spec allowed it. C5's spec does not:
-*no instructions anywhere*, and the brief goes out of its way to say this is the
-line you cannot fake.
+I grew up playing 金山打字通, a Chinese typing tutor, and one of its games has a
+police officer chasing a thief: the faster you type, the faster your character
+runs. I started the week wanting to remake it. The useful realisation was that
+the *scene* was not the game. The mechanic was "your typing rate is your speed,
+and the thing behind you is not slowing down" — everything else was a costume.
 
-What moved the work forward was not deleting the sentence but asking what it was
-*for*. It was doing two jobs — *type here*, and *hurry* — and the scene could do
-both better. A blinking caret says "type here" to anyone who has used a
-computer, and a boulder straining against the wall says "hurry" without a word.
-Cutting the sentence made the opening stronger, not weaker.
+So I changed the costume. Indiana Jones and the boulder is a chase nobody needs
+explained, and one you can obviously lose, which is what the brief asked for.
+The idea I'd started from survived intact; only what it looked like changed.
 
-> **TO WRITE:** did that feel like the breakthrough while you were working, and
-> what tipped you off? A sentence in your own words is worth more than my
-> account of it.
+Almost nothing after that came from planning. The weight of the boulder, the way
+it rolls, the run cycle — I arrived at each of them by playing the thing and
+saying what was wrong, round after round. What I would have specified on day one
+would have been much worse than what I ended up with.
 
 ## What it changed about who I want to be
 
-Last week's correct answer is this week's wrong one, and I nearly carried a hint
-line forward without re-reading anything, because it had been safe once.
+A developer who keeps the **rules** and the **presentation** apart. This week the
+rules barely moved after the first day — the tests stayed green through every
+visual round — and everything I changed was presentation. That split is why
+rebuilding the tunnel twice cost almost nothing.
 
-So the rule went into the harness instead of into my memory: `CLAUDE.md` now
-says to read this week's wording rather than last week's habits, and a check
-fails on the exact sentence I had planned to ship. I want to be the kind of
-developer whose standards live in files the build can enforce.
-
-> **TO WRITE:** what you actually want to do differently next week.
+And one who **plays it himself, earlier**. Everything genuinely wrong — the
+boulder taking its speed from the runner, the knees folding the wrong way — was
+invisible to the checks. No test was ever going to tell me.
