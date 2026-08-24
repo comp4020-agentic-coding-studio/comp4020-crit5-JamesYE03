@@ -15,7 +15,7 @@ import {
   type Outcome,
 } from "./src/chase";
 import { PASSAGE, opening } from "./src/passage";
-import { CADENCE_AT_THRESHOLD, ease, gait, pose } from "./src/runner";
+import { CADENCE_AT_THRESHOLD, ease, gait, pose, smoothDamp, type Damped } from "./src/runner";
 import { ceilingTile, floorTile, grainTile, svgUrl, wallTile } from "./src/scenery";
 import { backspace, isFinished, press, start, type Typing } from "./src/typing";
 
@@ -127,8 +127,24 @@ let smoothCps = 0;
  * half a character, and at the moment that matters — a lead near zero, typing
  * slow or stopped — it has caught up to exact.
  */
-let shownCorrect = 0;
-const SHOWN_TAU = 0.1;
+let shownCorrect: Damped = { value: 0, velocity: 0 };
+const SHOWN_SMOOTH = 0.16;
+
+/*
+ * Geometry, measured once per layout and never again.
+ *
+ * Reading `clientWidth` is a layout-flushing read; doing it in the same frame
+ * as a style write forces the browser to re-lay-out synchronously, over and
+ * over. That thrash was most of what was left of the boulder's stutter — it
+ * was not the maths, it was measuring while drawing.
+ */
+let stageW = 0;
+let stageH = 0;
+let boulderSize = 0;
+let runnerH = 0;
+/** where the rock has to reach: his back, not the middle of his sprite */
+let contactX = 0;
+let shownDistance = -1;
 /** how far past the runner the rock has rolled during the crush beat */
 let crushRoll = 0;
 let lastFrame = 0;
@@ -200,48 +216,54 @@ function drawRunner(): void {
  * lie the player can see.
  */
 function place(lead: number): void {
-  const width = stage.clientWidth;
-  const height = stage.clientHeight;
-  const size = boulder.clientWidth;
-  const runnerX = width / 2;
-
-  // his back, which is what the rock actually has to reach
-  const contactX = runnerX - runner.clientWidth * BODY_HALF;
   const edgeX = contactX - lead * pxPerChar + crushRoll;
-  const centreX = edgeX - size / 2;
+  const centreX = edgeX - boulderSize / 2;
 
-  if (edgeX < -size * 0.15) {
+  if (edgeX < -boulderSize * 0.15) {
     boulder.style.visibility = "hidden";
     tracker.dataset.visible = "";
-    trackerDistance.textContent = String(Math.max(0, Math.round(lead)));
-  } else {
-    boulder.style.visibility = "visible";
-    delete tracker.dataset.visible;
-    boulder.style.setProperty("--boulder-x", `${centreX.toFixed(1)}px`);
-    boulder.style.setProperty("--boulder-y", `${(groundAt(centreX, height) - size * 0.93).toFixed(1)}px`);
+    // Only when the number actually changes: a DOM text write every frame is
+    // a repaint every frame, for a digit that moves twice a second.
+    const metres = Math.max(0, Math.round(lead));
+    if (metres !== shownDistance) {
+      shownDistance = metres;
+      trackerDistance.textContent = String(metres);
+    }
+    return;
   }
+
+  boulder.style.visibility = "visible";
+  delete tracker.dataset.visible;
+  shownDistance = -1;
+  // `transform`, not `left`/`top`: this element moves every frame, and only
+  // transform and opacity get there without a layout and a paint.
+  const y = groundAt(centreX, stageH) - boulderSize * 0.93;
+  // translate places the element's own top-left, so offset by half its width
+  // to put its centre where the maths says.
+  const leftX = centreX - boulderSize / 2;
+  boulder.style.transform = `translate3d(${leftX.toFixed(2)}px, ${y.toFixed(2)}px, 0)`;
 }
 
 function layout(): void {
-  const height = stage.clientHeight;
-  const width = stage.clientWidth;
-  const runnerHeight = Math.min(200, Math.max(80, height * 0.27));
-  const boulderSize = Math.min(300, Math.max(92, Math.min(height * 0.42, width * 0.3)));
+  stageH = stage.clientHeight;
+  stageW = stage.clientWidth;
+  runnerH = Math.min(200, Math.max(80, stageH * 0.27));
+  boulderSize = Math.min(300, Math.max(92, Math.min(stageH * 0.42, stageW * 0.3)));
+  contactX = stageW / 2 - runnerH * (100 / 130) * BODY_HALF;
 
-  runner.style.setProperty("--runner-size", `${runnerHeight}px`);
+  runner.style.setProperty("--runner-size", `${runnerH}px`);
   runner.style.setProperty(
     "--runner-y",
-    `${(groundAt(width / 2, height) - runnerHeight * 0.96).toFixed(1)}px`,
+    `${(groundAt(stageW / 2, stageH) - runnerH * 0.96).toFixed(1)}px`,
   );
   boulder.style.setProperty("--boulder-size", `${boulderSize}px`);
-  tracker.style.setProperty("--tracker-y", `${(groundAt(0, height) - boulderSize * 0.5).toFixed(1)}px`);
-  game.style.setProperty("--ground-y", `${(GROUND_AT_LEFT * height).toFixed(1)}px`);
+  tracker.style.setProperty("--tracker-y", `${(groundAt(0, stageH) - boulderSize * 0.5).toFixed(1)}px`);
+  game.style.setProperty("--ground-y", `${(GROUND_AT_LEFT * stageH).toFixed(1)}px`);
 
   // Fix the scale so that at the head start the whole rock is just inside the
   // frame, then let that decide how fast the tunnel goes past.
-  const contactX = width / 2 - runnerHeight * (100 / 130) * BODY_HALF;
-  const startEdge = boulderSize + width * 0.03;
-  pxPerChar = Math.max((contactX - startEdge) / course.headStartChars, width / 28);
+  const startEdge = boulderSize + stageW * 0.03;
+  pxPerChar = Math.max((contactX - startEdge) / course.headStartChars, stageW / 28);
   // At the pace the boulder keeps, he runs at CADENCE_AT_THRESHOLD steps a
   // second; faster typing lengthens the stride once the cap is reached.
   baseStep = (course.thresholdCps * pxPerChar) / CADENCE_AT_THRESHOLD;
@@ -269,9 +291,9 @@ function frame(now: number): void {
     // The camera eases; the rock does not. Smoothing here is a camera choice,
     // and it is the only thing in the loop that is smoothed.
     smoothCps = ease(smoothCps, recentCps(stamps, seconds, 1.2), dt);
-    shownCorrect = ease(shownCorrect, typing.correct, dt, SHOWN_TAU, SHOWN_TAU);
+    shownCorrect = smoothDamp(shownCorrect, typing.correct, dt, SHOWN_SMOOTH);
     advance(dt, seconds);
-    place(Math.max(0, leadAt(course, shownCorrect, seconds)));
+    place(Math.max(0, leadAt(course, shownCorrect.value, seconds)));
     exit.style.setProperty("--glow", (0.1 + 0.8 * (typing.correct / course.chars)).toFixed(3));
 
     if (verdictNow === "escaped") end("escaped", seconds);
@@ -316,7 +338,7 @@ function advance(dt: number, seconds: number): void {
  * down with the typing, as though it were being pushed rather than falling.
  */
 function rollBoulder(seconds: number): void {
-  const radius = Math.max(1, boulder.clientWidth / 2);
+  const radius = Math.max(1, boulderSize / 2);
   const rolled = (boulderAt(course, seconds) + course.headStartChars) * pxPerChar;
   boulderSpin.style.transform = `rotate(${((rolled / radius) * (180 / Math.PI)).toFixed(1)}deg)`;
 }
@@ -397,8 +419,9 @@ function reset(): void {
   mistakes = 0;
   stride = 0;
   smoothCps = 0;
-  shownCorrect = 0;
+  shownCorrect = { value: 0, velocity: 0 };
   crushRoll = 0;
+  shownDistance = -1;
   game.dataset.state = "idle";
   delete game.dataset.outcome;
   result.hidden = true;

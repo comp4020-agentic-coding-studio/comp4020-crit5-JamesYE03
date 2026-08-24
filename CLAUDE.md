@@ -230,8 +230,15 @@ Two consequences worth remembering before touching the tuning:
 - **Draw the gap from a smoothed position, decide it from the exact one.**
   `typing.correct` is an integer and a character is most of a hundred pixels of
   tunnel, so drawing straight from it makes the boulder jerk backwards once per
-  keystroke. `shownCorrect` eases towards it for the picture; the outcome still
-  reads the integer. Never let those two swap jobs.
+  keystroke. `shownCorrect` follows it for the picture; the outcome still reads
+  the integer. Never let those two swap jobs.
+- **Smooth the speed, not just the position.** A first-order ease
+  (`ease`) moves fastest at the instant its target changes, so a target that
+  arrives in steps still comes out as a surge per step — smooth in position,
+  visibly pulsing in speed, and speed is what the eye reads. Use `smoothDamp`,
+  a critically damped spring that carries velocity between frames, for anything
+  following a stepped target. `ease` is still right where the *target* is
+  already continuous, like the gait.
 - **The camera and the difficulty are the same number.** `headStartChars` sets
   how far back the boulder starts, which sets `pxPerChar` (it has to be in
   frame), which sets how fast the world goes past. A gentler game is a
@@ -259,7 +266,15 @@ Two rules make this stack fast enough, and both are easy to break by accident:
 - **Per frame, touch only `transform` and `opacity`.** Anything else repaints.
   The first version animated a gradient behind `filter: blur(2px)` on the exit
   glow — a full re-rasterise every frame for an effect a static gradient plus a
-  changing opacity gives for free.
+  changing opacity gives for free. The boulder was then positioned with
+  `left`/`top` for two rounds, which lays the page out again every frame; it is
+  `transform` now.
+- **Never measure while drawing.** `clientWidth`, `clientHeight`,
+  `getBoundingClientRect` all flush layout, and doing that in the same frame as
+  a style write forces a synchronous re-layout every time round. Take every
+  measurement in `layout()` — on load and on resize — and cache it. This was
+  most of what was left of the boulder's stutter after the maths was already
+  right: not the maths, the measuring.
 - **Bake texture into images, never filter live.** `feTurbulence` inside a
   `background-image` data URI is rasterised once at decode; the same filter on
   a live element re-runs forever. `src/scenery.ts` generates every tile this

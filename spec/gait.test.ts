@@ -5,7 +5,7 @@
 // that a later change to the maths cannot quietly undo them.
 
 import { describe, expect, it } from "vitest";
-import { CADENCE_CAP, ease, gait, pose } from "../src/runner";
+import { CADENCE_CAP, ease, gait, pose, smoothDamp, type Damped } from "../src/runner";
 
 const TURN = Math.PI * 2;
 /** a cycle sampled finely enough to catch a sign flip anywhere in it */
@@ -88,6 +88,77 @@ describe("gait: cadence is capped, ground speed is not", () => {
   it("lengthens the stride only once the cadence is capped", () => {
     expect(gait(PACE, STEP).stepPx).toBeCloseTo(STEP, 6);
     expect(gait(PACE * 4, STEP).stepPx).toBeGreaterThan(STEP);
+  });
+});
+
+describe("following a target that arrives in steps", () => {
+  // The boulder's distance is drawn from the runner's position, and the
+  // runner's position is a keystroke count: an integer that jumps by a whole
+  // character — most of a hundred pixels of tunnel — in one frame. What the
+  // eye caught was not the jump in *position*, which a first-order ease
+  // already smooths, but the jump in *speed* at each step. These pin the
+  // property that fixes it.
+
+  const FRAME = 1 / 60;
+  const SMOOTH = 0.16;
+
+  /** Run a target through the follower and return the value each frame. */
+  function follow(target: (frame: number) => number, frames: number): number[] {
+    let state: Damped = { value: target(0), velocity: 0 };
+    const out: number[] = [];
+    for (let i = 0; i < frames; i++) {
+      state = smoothDamp(state, target(i), FRAME, SMOOTH);
+      out.push(state.value);
+    }
+    return out;
+  }
+
+  const speeds = (values: number[]) =>
+    values.slice(1).map((v, i) => (v - values[i]) / FRAME);
+
+  it("gets there", () => {
+    const values = follow(() => 10, 120);
+    expect(values.at(-1)).toBeCloseTo(10, 3);
+  });
+
+  it("never overshoots", () => {
+    // Critically damped, so it arrives without ringing past the target and
+    // back — a boulder that bounced would be worse than one that stepped.
+    for (const value of follow(() => 10, 200)) expect(value).toBeLessThanOrEqual(10.0001);
+  });
+
+  it("changes speed gradually when the target jumps", () => {
+    // The real test. A staircase target — one character every four frames,
+    // about 15 characters a second — and the acceleration has to stay bounded
+    // instead of spiking on every step.
+    const staircase = (frame: number) => Math.floor(frame / 4);
+    const rates = speeds(follow(staircase, 240));
+    const jerk = rates.slice(1).map((r, i) => Math.abs(r - rates[i]));
+    const settled = jerk.slice(60);
+    expect(Math.max(...settled)).toBeLessThan(Math.max(...rates) * 0.35);
+  });
+
+  it("is smoother in speed than the first-order ease it replaced", () => {
+    const staircase = (frame: number) => Math.floor(frame / 4);
+    let eased = 0;
+    const easedValues: number[] = [];
+    for (let i = 0; i < 240; i++) {
+      eased = ease(eased, staircase(i), FRAME, SMOOTH, SMOOTH);
+      easedValues.push(eased);
+    }
+    const swing = (values: number[]) => {
+      const rates = speeds(values).slice(60);
+      return Math.max(...rates) - Math.min(...rates);
+    };
+    expect(swing(follow(staircase, 240))).toBeLessThan(swing(easedValues));
+  });
+
+  it("does not depend on the frame rate", () => {
+    let sixty: Damped = { value: 0, velocity: 0 };
+    let thirty: Damped = { value: 0, velocity: 0 };
+    for (let i = 0; i < 60; i++) sixty = smoothDamp(sixty, 10, 1 / 60, SMOOTH);
+    for (let i = 0; i < 30; i++) thirty = smoothDamp(thirty, 10, 1 / 30, SMOOTH);
+    expect(sixty.value).toBeCloseTo(thirty.value, 2);
   });
 });
 

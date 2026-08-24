@@ -103,3 +103,36 @@ export function ease(current: number, target: number, dt: number, up = 0.55, dow
   const tau = target > current ? up : down;
   return current + (target - current) * (1 - Math.exp(-dt / tau));
 }
+
+export type Damped = { readonly value: number; readonly velocity: number };
+
+/**
+ * Follow a target that jumps, without inheriting the jump.
+ *
+ * `ease` above is first order: it moves fastest at the instant the target
+ * changes, so a target that arrives in steps — a keystroke count — comes out as
+ * a surge per step. Smooth in position, but not in *speed*, and the eye reads
+ * speed.
+ *
+ * This is a critically damped spring, so velocity is carried between frames
+ * and cannot jump either. It never overshoots, and it costs one extra number.
+ * `smoothTime` is roughly how long it takes to close most of a gap.
+ */
+export function smoothDamp(
+  state: Damped,
+  target: number,
+  dt: number,
+  smoothTime: number,
+): Damped {
+  const omega = 2 / Math.max(1e-4, smoothTime);
+  const x = omega * dt;
+  // A cheap, stable stand-in for exp(-x); the cubic keeps it well behaved at
+  // the long frame times a background tab hands you.
+  const decay = 1 / (1 + x + 0.48 * x * x + 0.235 * x * x * x);
+  const gap = state.value - target;
+  const step = (state.velocity + omega * gap) * dt;
+  return {
+    value: target + (gap + step) * decay,
+    velocity: (state.velocity - omega * step) * decay,
+  };
+}

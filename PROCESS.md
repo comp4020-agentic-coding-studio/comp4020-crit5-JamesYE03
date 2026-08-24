@@ -166,6 +166,37 @@ world looks, being kinder to slow typists literally makes the tunnel go past
 more slowly. Both facts are in `CLAUDE.md` so the next person to reach for the
 difficulty knob knows what else moves.
 
+### 7. "Still not smooth enough" was three bugs, and only one was the one I'd fixed
+
+The boulder jerked backwards once per keystroke, and the cause was plain
+enough: the gap was drawn from `typing.correct`, an integer, and one character
+is most of a hundred pixels of tunnel. I eased it and it got much better. It
+still was not right, and the interesting part is why.
+
+Two of the three causes had nothing to do with the maths.
+
+**The follower was smooth in position but not in speed.** A first-order ease
+moves fastest at the instant its target changes, so a stepped target still
+comes out as a surge per step. The eye reads speed, not position, so it read
+the surges. Replacing it with a critically damped spring — which carries
+velocity between frames, so the velocity cannot jump either — is what actually
+removed the pulse. `spec/gait.test.ts` now pins that property directly, and
+mutation-testing it by throwing the velocity term away turns it red.
+
+**And I had broken my own performance rule without noticing.** `CLAUDE.md` says
+per frame you touch only `transform` and `opacity`. The boulder had been
+positioned with `left`/`top` since I first drew it, which lays the page out
+again every frame — and `place()` was *also* reading `clientWidth` each frame,
+right after writing styles, which forces that layout to happen synchronously.
+Measuring while drawing, sixty times a second. All the measurements moved into
+`layout()`, which runs on load and on resize, and the rock moved to a
+transform.
+
+The lesson I want to keep is about diagnosis rather than about any of the three
+fixes: "it looks juddery" had one obvious cause and two invisible ones, and
+stopping at the obvious one got me most of the way and then stuck. The two
+rules I had written down myself were both being broken in the same function.
+
 ## Where to look
 
 - `src/typing.ts` and `src/chase.ts` — the two rules of the game, as pure
