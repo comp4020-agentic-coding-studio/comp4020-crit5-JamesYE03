@@ -33,12 +33,24 @@ const pages = shipped
   .filter((name) => name.endsWith(".html"))
   .map((name) => ({ name, html: readFileSync(join(DIST, name), "utf8") }));
 
-/** What a player actually sees before touching anything. Comments and script
- *  bodies are excluded: neither is on screen. */
+/**
+ * What a player actually sees before touching anything. Comments and script
+ * bodies are excluded: neither is on screen.
+ *
+ * Text nodes are joined with a space rather than concatenated. `textContent`
+ * would run "</h1><p>" together into "BOULDERType fast to run!", and a phrase
+ * fused to the word before it is still a sentence a player reads — it should
+ * not be a way past this check.
+ */
 function visibleText(html: string): string {
   const doc = new JSDOM(html).window.document;
   for (const node of doc.querySelectorAll("script, style")) node.remove();
-  return (doc.body.textContent ?? "").replace(/\s+/g, " ").trim();
+  const walker = doc.createTreeWalker(doc.body, 4 /* SHOW_TEXT */);
+  const parts: string[] = [];
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    parts.push(node.textContent ?? "");
+  }
+  return parts.join(" ").replace(/\s+/g, " ").trim();
 }
 
 // Phrases that would each, on their own, be a how-to-play. None of them
@@ -56,8 +68,25 @@ const TELLING = [
   "your goal",
 ];
 
+/**
+ * Code is not prose. This file is called `no-instructions.test.ts`, and naming
+ * it in the README is not the same as writing one — so code spans and bare
+ * filenames come out before the scan.
+ *
+ * Deliberately not done with word boundaries around the phrase: the first
+ * version of this check used a lookbehind, and "BOULDER" running straight into
+ * "Type fast to run!" with no whitespace between the tags was enough to slip
+ * past it. Narrow the haystack, not the needle.
+ */
+function prose(text: string): string {
+  return text
+    .replace(/```[\s\S]*?```/g, " ")
+    .replace(/`[^`]*`/g, " ")
+    .replace(/[\w./-]+\.(?:ts|js|mjs|css|html|md|json|png|mp3|yml)\b/gi, " ");
+}
+
 function telling(text: string): string[] {
-  const lower = text.toLowerCase();
+  const lower = prose(text).toLowerCase();
   return TELLING.filter((phrase) => lower.includes(phrase));
 }
 

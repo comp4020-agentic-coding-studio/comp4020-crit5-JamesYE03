@@ -1,70 +1,107 @@
 # Process overview
 
-<!-- TEMPLATE: this file is a shape to fill in, not a form. Replace everything
-     in it with your own overview, and delete this comment — `pnpm
-     check:evidence` will remind you if it's still here. -->
-
-A reading-guide to how the work came together --- a map to your process, not an
-essay about it. Markers read this file and follow its citations; they don't
-trawl the repo for evidence you didn't point at, so if a moment mattered, cite
-it.
-
-This file is the shape; the course site's
-[assessment page](https://comp.anu.edu.au/courses/comp4020-agentic-coding-studio/topics/assessment/#what-you-submit)
-is the requirement, and its
-[word counts](https://comp.anu.edu.au/courses/comp4020-agentic-coding-studio/topics/assessment/#word-counts)
-cover every deliverable.
-
 ## What I built
 
-One paragraph: the thing, and the idea behind it.
+**BOULDER** — the opening scene of *Raiders of the Lost Ark*, as a typing race.
+A stick figure in a fedora sprints right down a tunnel that runs downhill; a
+stone boulder rolls after him at a constant speed. The player types a fixed
+passage of prose, and the runner's position *is* the number of characters typed
+correctly — so typing fast is running fast, with no fudge factor in between.
+Finish the passage before the boulder reaches you and you escape; fall behind
+its pace and it catches you. Nothing on the page says any of that: this week's
+spec bans instructions outright, so a blinking caret and a boulder straining
+against the wall have to do the whole job of teaching the first move.
+
+I came to it wanting to remake 金山打字通's police-chases-thief typing game, and
+kept the mechanic while changing the scene to the one it is really about — a
+chase you lose by being slow.
 
 ## The moments that mattered
 
-Three or four for an assignment; fewer is fine for a weekly prototype. Keep the
-list short so each moment has room to do all four jobs:
+### 1. The opening screen I planned would have failed the hardest line in the spec
 
-1. **what happened** --- the problem, or the thing that went wrong
-2. **what you did instead of the obvious thing** --- the call you made, and why
-   it beat the obvious one
-3. **how you knew it was right** --- the check you ran, the viewport you looked
-   at, what you read before accepting the diff
-4. **the citation** --- a commit or commit range, a `CLAUDE.md` change, a check
-   that went from red to green, a prompt paired with the commit it produced
+My plan had the game open on a floating line of text: **"Type fast to run!"**.
+C4's spec allowed a one-line hint at the top of the page and I had one there, so
+carrying the habit forward felt free. C5's spec is not C4's — *"no instructions
+anywhere, on screen or off"* — and the brief singles that line out as the one
+thing that can't be put under test and can't be faked.
 
-Jobs 2 and 3 are the ones the repo can't tell a reader on its own, so they're
-where the marks are. The strongest moments are the ones where a correction
-landed in the **harness** --- the standards and checks your work has to satisfy
---- rather than in a retry: a rule added to `CLAUDE.md`, a check wired up, an
-attempt thrown away. Retrying until it passes is the routine case, and changing
-what the work runs against is the skilled one.
+The obvious move was to delete the sentence. What I did instead was work out
+what the sentence had been *doing* and build the scene to do it without words:
+the boulder is already trembling loose at the left edge before anything starts,
+and the passage sits below it with a caret blinking on its first character. A
+blinking text caret is the most universally understood "type here" affordance
+there is, and a rock about to fall on someone supplies the urgency the exclamation
+mark was carrying.
 
-Cite each moment as a link whose text is the commit hash or range and whose
-target is this repo's commit or compare URL, so a reader clicks straight to the
-evidence:
+Then I put it under a sensor rather than trusting myself to remember, and
+mutation-tested the sensor by pasting the original line back into the page — two
+checks go red on it. The rule and the reasoning went into `CLAUDE.md`
+alongside it, including *why* `aria-label` and the meta description are held to
+being descriptive instead of being suppressed.
 
-- one commit: [`a1b2c3d`](https://github.com/YOUR-ORG/YOUR-REPO/commit/a1b2c3d)
-- a range:
-  [`a1b2c3d...e4f5a6b`](https://github.com/YOUR-ORG/YOUR-REPO/compare/a1b2c3d...e4f5a6b)
+[`5a24d5b`](https://github.com/comp4020-agentic-coding-studio/comp4020-crit5-JamesYE03/commit/5a24d5b)
+(the harness rule) and
+[`af28682`](https://github.com/comp4020-agentic-coding-studio/comp4020-crit5-JamesYE03/commit/af28682)
+(`spec/no-instructions.test.ts`).
 
-To pair a prompt with the commit it produced, quote the prompt (curated, not a
-full transcript) next to the citation:
+### 2. Measuring the chase in characters instead of pixels
 
-> the prompt, verbatim
+The first shape I reached for had a runner speed in pixels per second, a boulder
+speed in pixels per second, and a conversion from typing rate to speed somewhere
+in the middle. Three numbers to tune, all coupled.
 
-Screenshots are welcome where one carries the verification better than a
-sentence does. Commit the file to this repo and link it with a **relative**
-path, which is what makes it render on GitHub: `![alt text](docs/before.png)`.
-Images don't count towards the word count and don't replace the citation.
+Instead the whole model is measured in **characters**: the runner's position is
+the count of characters typed correctly, the boulder's is a straight line in
+time, and the tunnel is exactly as long as the passage. That collapses the game
+to one tunable number — `thresholdCps` in `src/chase.ts`, the typing rate at
+which the two move as one — and makes "typing fast makes you fast" true by
+construction rather than by calibration. It also made the punishment for a
+mistake fall out for free: an uncorrected red character stops the count from
+rising, so the runner stops earning ground while the boulder keeps coming. There
+is no penalty rule anywhere in the code.
 
-## Before you ship
+Because both models are pure functions over plain data, a test can play a whole
+four-minute run in a millisecond. That is what let me check the spec's *"a
+stranger reaches an ending inside five minutes"* line directly, for both the
+desktop and the phone tuning, instead of arguing about it.
 
-`pnpm check:evidence` verifies your citations resolve to real commits, that a
-reflection entry the marker reads is in `reflections/`, and that your
-`CLAUDE.md` is there --- before a marker ever opens the file. It checks that
-your map is traceable, not that it is good: the marker judges whether your
-small, deliberately chosen set of moments shows real judgement and reflection. A
-green check is not a substitute for that curation.
+[`7efd942`](https://github.com/comp4020-agentic-coding-studio/comp4020-crit5-JamesYE03/commit/7efd942)
 
-Images aren't checked: unlike a citation whose SHA doesn't resolve, a broken
-image is visible the moment this file is rendered on GitHub.
+### 3. Mutation-testing both new sensors, because C4 taught me not to trust a green check
+
+In C4 I wrote a geometry check that derived the thing it was asserting from the
+thing it was asserting about, so it stayed green with the bell on the wrong side
+of the screen. That lesson is in `CLAUDE.md` as a standing rule, and this week I
+actually followed it on both new sensors before believing either.
+
+Freezing `boulderAt` so the boulder never moves turns five chase tests red —
+without that, *"a slow typist gets caught"* would have been a test that passed
+because the passage is long, not because anything was chasing anyone.
+
+The instruction sensor was the more interesting one, because it passed its
+first mutation and then failed a second. I had written it to match each banned
+phrase on word boundaries, so that naming `no-instructions.test.ts` in the
+README wouldn't trip it. Mutating the page a second way — pasting the hint in
+without whitespace between the tags, so the page text read `BOULDERType fast to
+run!` — walked straight past the lookbehind. The fix was to stop being clever
+about the match and be careful about the input instead: join text nodes with
+spaces, strip code spans and filenames, then use a plain substring test. That
+rule went into `CLAUDE.md` as *narrow the haystack, not the needle*, next to the
+C4 lesson it extends.
+
+One mutation is not a mutation test. You have to break it the way someone
+trying to get past it would.
+
+[`7efd942...af28682`](https://github.com/comp4020-agentic-coding-studio/comp4020-crit5-JamesYE03/compare/7efd942...af28682)
+
+## Where to look
+
+- `src/typing.ts` and `src/chase.ts` — the two rules of the game, as pure
+  functions. Everything else is wiring.
+- `spec/game.test.ts` — the two mechanically checkable spec lines.
+- `spec/no-instructions.test.ts` — the third one, and the reasoning about what
+  a sensor can and can't hold.
+- `CLAUDE.md` — carried forward from `comp4020-crit4`, with C4's audio and
+  geometry rules retired and this week's read-the-spec-not-last-week's-habits
+  rule added.

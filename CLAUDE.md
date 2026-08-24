@@ -173,6 +173,16 @@ put it back. That applies squarely to this week's chase test --- a test that
 says "a slow typist gets caught" is worthless if it would also pass with the
 boulder standing still.
 
+C5 added a second half to the lesson. `no-instructions.test.ts` passed its
+first mutation and then failed a second one: a word-boundary rule around each
+banned phrase meant that a hint fused to the heading before it
+(`</h1><p>Type fast...`, no whitespace, so the text read `BOULDERType fast`)
+slipped straight through. **When a check has to reject text, narrow the
+haystack, not the needle** --- normalise what you are scanning (join text nodes
+with spaces, strip code spans and filenames) and keep the match itself dumb.
+Clever matching is where the hole is, and one mutation is not enough: mutate it
+the way someone trying to get past it would.
+
 ### Web Audio
 
 - **The context starts suspended.** Browsers will not produce sound until a real
