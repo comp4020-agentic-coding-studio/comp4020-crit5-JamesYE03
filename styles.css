@@ -1,16 +1,564 @@
+/*
+  Torch-lit rock: everything is one warm family, with daylight the only cool
+  bright thing in the frame — so the exit reads as the goal without a label.
+
+  The tunnel runs downhill to the right. The ground line therefore sits at
+  --ground-left of the stage height on the left edge and --ground-right on the
+  right; main.ts places the boulder along that same line.
+*/
+:root {
+  --deep: #0a0705;
+  --rock: #241608;
+  --rock-lit: #4a2c10;
+  --ink: #f2e3c8;
+  --dim: rgba(242, 227, 200, 0.26);
+  --amber: #f0a63c;
+  --danger: #e2503a;
+  --ground-left: 84%;
+  --ground-right: 92%;
+  --stride: 0.5s;
+  --scroll: 1.6s;
+
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+}
+
 body {
   margin: 0;
-  padding: 2rem;
-  font-family: system-ui, sans-serif;
-  line-height: 1.6;
-  color: #1a1a1a;
+  overflow: hidden;
+  background: var(--deep);
+  color: var(--ink);
+  font-family: Georgia, "Times New Roman", serif;
+  /* the keyboard is the controller; a stray text selection only gets in the way */
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
 }
 
-main {
-  max-width: 40rem;
-  margin: 0 auto;
+/* ---------------------------------------------------------------- title */
+
+.title {
+  display: flex;
+  align-items: baseline;
+  gap: 0.9rem;
+  padding: 0.55rem clamp(0.75rem, 3vw, 2rem);
+  border-bottom: 1px solid rgba(240, 166, 60, 0.16);
 }
 
-a {
-  color: #0b5fff;
+.title__name {
+  margin: 0;
+  font-size: clamp(0.95rem, 2.2vw, 1.3rem);
+  font-weight: 400;
+  letter-spacing: 0.42em;
+  text-indent: 0.42em;
+  color: var(--amber);
+}
+
+/* The site is one page, so the landmark points at it. It carries no
+   information the h1 doesn't; it is here because a page without a navigation
+   landmark is a page a screen-reader user has to guess their way around. */
+.title__nav {
+  font-size: 0;
+}
+
+.title__nav a {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ----------------------------------------------------------------- game */
+
+.game {
+  position: relative;
+  display: grid;
+  grid-template-rows: 1fr auto;
+  height: calc(100dvh - 2.6rem);
+}
+
+.stage {
+  position: relative;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.stage__tunnel {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.stage__rock {
+  fill: var(--rock);
+  stroke: var(--rock-lit);
+  stroke-width: 2;
+}
+
+/* The floor, scrolling past. Its speed is the runner's speed, which is why
+   standing still looks like standing still even though the camera never
+   moves. */
+.stage__ground {
+  position: absolute;
+  left: -20%;
+  width: 140%;
+  height: 3px;
+  bottom: 8%;
+  transform-origin: left center;
+  /* the same slope the rock is drawn with */
+  transform: rotate(2.05deg);
+  background-image: repeating-linear-gradient(
+    90deg,
+    rgba(240, 166, 60, 0.5) 0 26px,
+    rgba(240, 166, 60, 0) 26px 74px
+  );
+  background-size: 100px 100%;
+  animation: scroll var(--scroll) linear infinite;
+}
+
+@keyframes scroll {
+  to {
+    background-position-x: -100px;
+  }
+}
+
+.exit {
+  position: absolute;
+  inset: 0 0 0 auto;
+  width: clamp(80px, 22vw, 320px);
+  pointer-events: none;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 226, 168, 0) 0%,
+    rgba(255, 226, 168, calc(0.1 + 0.75 * var(--progress, 0))) 100%
+  );
+  filter: blur(2px);
+}
+
+/* --------------------------------------------------------------- runner */
+
+.runner {
+  position: absolute;
+  left: 50%;
+  bottom: 12%;
+  height: clamp(84px, 25%, 190px);
+  aspect-ratio: 100 / 130;
+  transform: translateX(-50%);
+}
+
+.runner svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.runner__head,
+.runner__hat-crown,
+.runner__hat-brim {
+  fill: var(--ink);
+}
+
+.runner__body path,
+.runner__body,
+.runner__arm path,
+.runner__leg path,
+.runner__whip {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.runner__whip {
+  stroke-width: 2.6;
+  opacity: 0.75;
+}
+
+/* Limbs pivot about the joint they hang from, in viewBox units. */
+.runner__arm,
+.runner__leg,
+.runner__bob {
+  transform-box: view-box;
+}
+
+.runner__arm {
+  transform-origin: 49px 52px;
+}
+
+.runner__leg {
+  transform-origin: 47px 78px;
+}
+
+.runner__bob,
+.runner__arm,
+.runner__leg,
+.boulder__spin {
+  animation-duration: var(--stride);
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}
+
+.runner__bob {
+  animation-name: bob;
+  transform-origin: 50px 130px;
+}
+
+.runner__leg--near {
+  animation-name: swing-back;
+}
+.runner__leg--far {
+  animation-name: swing-forward;
+}
+.runner__arm--near {
+  animation-name: swing-forward;
+}
+.runner__arm--far {
+  animation-name: swing-back;
+}
+
+@keyframes swing-forward {
+  0%,
+  100% {
+    transform: rotate(26deg);
+  }
+  50% {
+    transform: rotate(-26deg);
+  }
+}
+
+@keyframes swing-back {
+  0%,
+  100% {
+    transform: rotate(-26deg);
+  }
+  50% {
+    transform: rotate(26deg);
+  }
+}
+
+@keyframes bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+/* -------------------------------------------------------------- boulder */
+
+.boulder {
+  position: absolute;
+  left: var(--boulder-x, -40%);
+  bottom: var(--boulder-bottom, 16%);
+  height: clamp(96px, 34%, 260px);
+  aspect-ratio: 1;
+  transform: translate(-50%, 24%);
+}
+
+.boulder svg {
+  width: 100%;
+  height: 100%;
+}
+
+.boulder__body {
+  fill: #17100a;
+  stroke: var(--ink);
+  stroke-width: 4;
+}
+
+.boulder__crack {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  opacity: 0.7;
+}
+
+.boulder__pit {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 2.2;
+  opacity: 0.55;
+}
+
+.boulder__spin {
+  transform-origin: 60px 60px;
+  animation-name: roll;
+  animation-timing-function: linear;
+  animation-duration: 1.15s;
+}
+
+@keyframes roll {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Nobody is running: legs and floor stop, the boulder does not. That is the
+   only feedback a player needs to connect "I stopped typing" with "it is
+   getting closer". */
+.is-still .runner__bob,
+.is-still .runner__arm,
+.is-still .runner__leg,
+.is-still .stage__ground {
+  animation-play-state: paused;
+}
+
+/* Before the run starts the boulder has not come loose yet — it is straining
+   against the wall. That tremor is the whole opening invitation on the scene
+   side: something bad is about to happen and the caret is blinking. */
+[data-state="idle"] .boulder__spin {
+  animation-name: tremble;
+  animation-duration: 0.16s;
+  animation-timing-function: linear;
+}
+
+@keyframes tremble {
+  0%,
+  100% {
+    transform: translate(0, 0) rotate(-1.2deg);
+  }
+  50% {
+    transform: translate(2px, -1px) rotate(1.2deg);
+  }
+}
+
+/* -------------------------------------------------------------- tracker */
+
+/* Once the lead is big enough that the boulder is off the left of the frame,
+   this takes over: an arrow at the edge and how far back it is. */
+.tracker {
+  position: absolute;
+  left: clamp(0.4rem, 2vw, 1.4rem);
+  bottom: 15%;
+  display: none;
+  align-items: center;
+  gap: 0.3rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: clamp(0.8rem, 1.8vw, 1.05rem);
+  color: var(--amber);
+  opacity: 0.85;
+}
+
+.tracker[data-visible] {
+  display: flex;
+}
+
+.tracker svg {
+  width: 1em;
+  height: 1em;
+  fill: currentColor;
+}
+
+.tracker__unit {
+  opacity: 0.6;
+}
+
+/* -------------------------------------------------------------- passage */
+
+.passage {
+  --lines: 3;
+
+  overflow: hidden;
+  height: calc(var(--lines) * 1.75em + 1.6rem);
+  padding: 0.8rem clamp(0.75rem, 4vw, 3rem);
+  border-top: 1px solid rgba(240, 166, 60, 0.16);
+  background: #080604;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: clamp(0.95rem, 1.35vw + 0.55rem, 1.55rem);
+  line-height: 1.75;
+}
+
+.passage__inner {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  transition: transform 90ms linear;
+}
+
+.passage__done {
+  color: var(--dim);
+}
+
+.passage__errors {
+  color: var(--danger);
+  text-decoration: underline wavy var(--danger) 1px;
+  text-underline-offset: 0.22em;
+}
+
+.passage__rest {
+  color: var(--ink);
+}
+
+/* Zero width, so it never reflows the text it sits inside. */
+.caret {
+  position: relative;
+  display: inline-block;
+  width: 0;
+  vertical-align: baseline;
+}
+
+.caret::before {
+  content: "";
+  position: absolute;
+  left: -1px;
+  bottom: -0.28em;
+  width: 2px;
+  height: 1.25em;
+  background: var(--amber);
+  animation: blink 1.05s steps(2, jump-none) infinite;
+}
+
+[data-state="running"] .caret::before {
+  animation: none;
+}
+
+@keyframes blink {
+  to {
+    opacity: 0;
+  }
+}
+
+/* Focusable so a phone will raise its keyboard, invisible so nothing on the
+   page looks like a form. Not display:none — that cannot take focus. */
+.capture {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* --------------------------------------------------------------- result */
+
+.result {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(0.8rem, 3vh, 2rem);
+  background: rgba(6, 4, 3, 0.86);
+  backdrop-filter: blur(3px);
+  animation: fade 320ms ease-out;
+}
+
+.result[hidden] {
+  display: none;
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+}
+
+.result__verdict {
+  margin: 0;
+  font-size: clamp(2rem, 9vw, 5.5rem);
+  letter-spacing: 0.16em;
+  text-indent: 0.16em;
+  color: var(--amber);
+}
+
+[data-outcome="caught"] .result__verdict {
+  color: var(--danger);
+}
+
+.result__stats {
+  display: flex;
+  gap: clamp(1.2rem, 6vw, 3.6rem);
+  margin: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  text-align: center;
+}
+
+.result__stats dt {
+  font-size: 0.68rem;
+  letter-spacing: 0.2em;
+  color: var(--dim);
+}
+
+.result__stats dd {
+  margin: 0.2em 0 0;
+  font-size: clamp(1.3rem, 4vw, 2.2rem);
+  color: var(--ink);
+}
+
+.result__again {
+  display: grid;
+  place-items: center;
+  width: clamp(3rem, 9vw, 4rem);
+  aspect-ratio: 1;
+  padding: 0;
+  border: 1px solid rgba(242, 227, 200, 0.3);
+  border-radius: 50%;
+  background: none;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.result__again:hover,
+.result__again:focus-visible {
+  border-color: var(--amber);
+  color: var(--amber);
+}
+
+.result__again svg {
+  width: 52%;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+}
+
+.result__again svg path:last-child {
+  fill: currentColor;
+  stroke: none;
+}
+
+/* ---------------------------------------------------------------- phone */
+
+@media (max-height: 620px), (max-width: 560px) {
+  .passage {
+    --lines: 2;
+  }
+
+  .runner {
+    height: clamp(70px, 30%, 130px);
+  }
+
+  .boulder {
+    height: clamp(78px, 38%, 170px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .runner__bob,
+  .runner__arm,
+  .runner__leg,
+  .boulder__spin,
+  .stage__ground,
+  .caret::before {
+    animation: none;
+  }
 }

@@ -2,18 +2,20 @@
 <html lang="en-AU">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>COMP4020 prototype</title>
-    <meta
-      name="description"
-      content="Replace this with one sentence saying what this page is. A search result and a link preview both show it."
-    />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>BOULDER</title>
 
     <!--
-      The link-preview card: public/card.png, 1200x630 --- replace it. The URL
-      resolves against this page, like any link. No og:title/og:description:
-      scrapers fall back to the <title> and description above.
+      Descriptive, never imperative. This is read by scrapers and screen
+      readers, not by a player looking for a hint — but this week's spec bans
+      instructions "on screen or off", so it says what the page IS, not what
+      to do with it. Same rule for every aria-label below.
     -->
+    <meta
+      name="description"
+      content="A stick figure in a fedora sprints down a collapsing tunnel while a stone boulder rolls after him."
+    />
+
     <meta property="og:type" content="website" />
     <meta property="og:image" content="./card.png" />
     <meta name="twitter:card" content="summary_large_image" />
@@ -21,18 +23,137 @@
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
-    <header>
-      <nav aria-label="Primary">
-        <a href="./">Home</a>
-      </nav>
+    <header class="title">
+      <h1 class="title__name">BOULDER</h1>
+      <nav aria-label="Primary" class="title__nav"><a href="./">BOULDER</a></nav>
     </header>
-    <main>
-      <h1>COMP4020 prototype</h1>
-      <p>
-        Replace this with your prototype. This week's brief is on the course website;
-        <code>spec/README.md</code> explains how the checks in this repo relate to it.
-      </p>
+
+    <main class="game" data-game data-state="idle">
+      <!--
+        The scene. The runner is pinned to the middle of the frame and the
+        world moves past him, so the boulder's position on screen IS the lead:
+        no separate gauge to read, and nothing to explain.
+      -->
+      <div class="stage" data-stage>
+        <svg
+          class="stage__tunnel"
+          viewBox="0 0 1200 400"
+          preserveAspectRatio="none"
+          aria-hidden="true"
+        >
+          <defs>
+            <linearGradient id="depth" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stop-color="#0a0705" />
+              <stop offset="62%" stop-color="#1c1109" />
+              <stop offset="100%" stop-color="#3a1f0c" />
+            </linearGradient>
+          </defs>
+          <rect width="1200" height="400" fill="url(#depth)" />
+          <!-- ceiling and floor: jagged rock, and the floor runs downhill to
+               the right, which is why the boulder is a problem -->
+          <path
+            class="stage__rock"
+            d="M0 0 H1200 V150 L1120 146 L1040 152 L960 142 L880 148 L800 138 L720 144 L640 134 L560 140 L480 130 L400 136 L320 126 L240 132 L160 122 L80 128 L0 118 Z"
+          />
+          <path
+            class="stage__rock"
+            d="M0 400 H1200 V368 L1120 364 L1040 370 L960 360 L880 366 L800 356 L720 362 L640 352 L560 358 L480 348 L400 354 L320 344 L240 350 L160 340 L80 346 L0 336 Z"
+          />
+        </svg>
+
+        <!-- the floor the two of them are actually on, scrolling past -->
+        <div class="stage__ground" data-ground></div>
+
+        <div class="boulder" data-boulder>
+          <svg viewBox="0 0 120 120" aria-hidden="true">
+            <g class="boulder__spin">
+              <circle class="boulder__body" cx="60" cy="60" r="54" />
+              <path class="boulder__crack" d="M28 42 L52 54 L40 74 L64 88" />
+              <path class="boulder__crack" d="M86 34 L74 56 L94 68" />
+              <path class="boulder__crack" d="M56 16 L62 38" />
+              <circle class="boulder__pit" cx="82" cy="88" r="7" />
+              <circle class="boulder__pit" cx="34" cy="92" r="4.5" />
+            </g>
+          </svg>
+        </div>
+
+        <!-- when the boulder is far enough back to leave the frame, this
+             carries the distance instead -->
+        <div class="tracker" data-tracker aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M17 3 L7 12 L17 21 Z" /></svg>
+          <span data-tracker-distance>0</span><span class="tracker__unit">m</span>
+        </div>
+
+        <div class="runner" data-runner>
+          <svg
+            viewBox="0 0 100 130"
+            role="img"
+            aria-label="A stick figure in a wide-brimmed hat running, a whip trailing from one hand, with a stone boulder rolling behind him."
+          >
+            <g class="runner__bob">
+              <!-- whip, trailing back over the shoulder -->
+              <path class="runner__whip" d="M62 58 C 40 40, 18 46, 6 62" />
+              <!-- the hat is doing most of the work of saying who this is -->
+              <path class="runner__hat-crown" d="M39 24 C 40 12, 60 12, 61 24 Z" />
+              <ellipse class="runner__hat-brim" cx="50" cy="25" rx="21" ry="4.4" />
+              <circle class="runner__head" cx="50" cy="33" r="8.5" />
+              <path class="runner__body" d="M50 42 L47 78" />
+              <g class="runner__arm runner__arm--near"><path d="M49 52 L64 58" /></g>
+              <g class="runner__arm runner__arm--far"><path d="M49 52 L34 60" /></g>
+              <g class="runner__leg runner__leg--near"><path d="M47 78 L60 104 L57 122" /></g>
+              <g class="runner__leg runner__leg--far"><path d="M47 78 L33 100 L36 120" /></g>
+            </g>
+          </svg>
+        </div>
+
+        <!-- daylight, brightening as the passage runs out -->
+        <div class="exit" data-exit aria-hidden="true"></div>
+      </div>
+
+      <!--
+        The passage. A blinking caret on the first character is the whole
+        opening invitation: no line of text tells anyone to type, because this
+        week's spec forbids exactly that.
+      -->
+      <div class="passage" data-passage>
+        <p class="passage__inner" data-passage-inner>
+          <span class="passage__done" data-done></span
+          ><span class="passage__errors" data-errors></span
+          ><span class="caret" data-caret></span
+          ><span class="passage__rest" data-rest></span>
+        </p>
+      </div>
+
+      <!-- a phone has no keyboard until something focusable asks for one -->
+      <input
+        class="capture"
+        data-capture
+        type="text"
+        aria-label="Passage text"
+        autocapitalize="off"
+        autocomplete="off"
+        autocorrect="off"
+        spellcheck="false"
+        enterkeyhint="done"
+        tabindex="-1"
+      />
+
+      <div class="result" data-result hidden>
+        <p class="result__verdict" data-verdict></p>
+        <dl class="result__stats">
+          <div><dt>wpm</dt><dd data-stat-wpm>0</dd></div>
+          <div><dt>accuracy</dt><dd><span data-stat-accuracy>0</span>%</dd></div>
+          <div><dt>seconds</dt><dd data-stat-seconds>0</dd></div>
+        </dl>
+        <button class="result__again" data-again type="button" aria-label="Run it again">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M20 12 A8 8 0 1 1 12 4 A8 8 0 0 1 18.5 7.4" />
+            <path d="M19.4 2.6 L19 8 L13.6 7.6 Z" />
+          </svg>
+        </button>
+      </div>
     </main>
+
     <script type="module" src="./main.ts"></script>
   </body>
 </html>
